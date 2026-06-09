@@ -185,26 +185,30 @@ function show_screen(screen) {
 
 /** Inicializa la app: comprueba si hay sesión activa */
 async function init() {
-  // Escuchar cambios de sesión
+  // Escuchar cambios de sesión — solo reaccionar a SIGNED_IN y SIGNED_OUT
   sb().auth.onAuthStateChange(async (event, session) => {
-    if (session?.user) {
-      State.user = session.user;
-      await load_profile();
-      show_screen('app');
-      await refresh_dashboard();
-      start_clock();
-    } else {
-      State.user   = null;
+    console.log('Auth event:', event);
+    if (event === 'SIGNED_OUT') {
+      State.user    = null;
       State.profile = null;
       clearInterval(State.elapsedTimer);
       clearInterval(State.clockTimer);
       show_screen('auth');
     }
+    // SIGNED_IN lo maneja el propio botón de login directamente
   });
 
-  // Comprobar sesión existente
+  // Comprobar sesión existente al cargar la página
   const { data: { session } } = await sb().auth.getSession();
-  if (!session) show_screen('auth');
+  if (session?.user) {
+    State.user = session.user;
+    try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
+    show_screen('app');
+    try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
+    start_clock();
+  } else {
+    show_screen('auth');
+  }
 }
 
 /** Carga el perfil del usuario desde public.profiles */
@@ -261,9 +265,9 @@ DOM.loginForm.addEventListener('submit', async e => {
   // Login correcto — forzar transición sin esperar onAuthStateChange
   if (data?.user) {
     State.user = data.user;
-    await load_profile();
+    try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
     show_screen('app');
-    await refresh_dashboard();
+    try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
     start_clock();
   }
 });
