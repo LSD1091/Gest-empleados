@@ -179,8 +179,13 @@ const sb = () => window._supabase;
 
 /** Muestra la pantalla correcta según si hay sesión */
 function show_screen(screen) {
-  DOM.authScreen.classList.toggle('active', screen === 'auth');
-  DOM.appScreen.classList.toggle('active', screen === 'app');
+  if (screen === 'app') {
+    DOM.authScreen.style.display = 'none';
+    DOM.appScreen.style.display  = 'flex';
+  } else {
+    DOM.authScreen.style.display = 'flex';
+    DOM.appScreen.style.display  = 'none';
+  }
 }
 
 /** Inicializa la app: comprueba si hay sesión activa */
@@ -200,13 +205,18 @@ async function init() {
       return;
     }
 
-    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && !initialized) {
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+      if (initialized) return;   // evitar doble disparo
       initialized = true;
       State.user = session.user;
       await load_profile();
       show_screen('app');
       await refresh_dashboard();
       start_clock();
+    }
+
+    if (event === 'INITIAL_SESSION' && !session?.user) {
+      show_screen('auth');
     }
   });
 }
