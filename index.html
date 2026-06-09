@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TimeControl — Control Horario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       PANTALLA DE AUTH (Login / Registro)
+  ═══════════════════════════════════════════ -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-container">
+      <div class="auth-brand">
+        <div class="brand-icon">⏱</div>
+        <h1>TimeControl</h1>
+        <p>Gestión horaria para equipos</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="tab-btn active" data-tab="login">Iniciar sesión</button>
+        <button class="tab-btn" data-tab="register">Registrarse</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="auth-form active">
+        <div class="field-group">
+          <label for="login-email">Correo electrónico</label>
+          <input type="email" id="login-email" placeholder="tu@email.com" required />
+        </div>
+        <div class="field-group">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+        <div id="login-error" class="form-error hidden"></div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" class="auth-form">
+        <div class="field-group">
+          <label for="reg-name">Nombre completo</label>
+          <input type="text" id="reg-name" placeholder="Ana García" required />
+        </div>
+        <div class="field-group">
+          <label for="reg-email">Correo electrónico</label>
+          <input type="email" id="reg-email" placeholder="tu@email.com" required />
+        </div>
+        <div class="field-group">
+          <label for="reg-password">Contraseña</label>
+          <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6" />
+        </div>
+        <div class="field-group">
+          <label for="reg-hours">Jornada laboral (horas/día)</label>
+          <input type="number" id="reg-hours" value="8" min="1" max="24" step="0.5" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Crear cuenta</button>
+        <div id="register-error" class="form-error hidden"></div>
+        <div id="register-success" class="form-success hidden"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANTALLA PRINCIPAL (App)
+  ═══════════════════════════════════════════ -->
+  <div id="app-screen" class="screen">
+
+    <!-- Header / Navbar -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="header-brand">
+          <span class="brand-icon-sm">⏱</span>
+          <span class="brand-name">TimeControl</span>
+        </div>
+        <div class="header-user">
+          <span id="header-username" class="user-name"></span>
+          <button id="settings-btn" class="btn btn-ghost btn-icon" title="Configuración">⚙</button>
+          <button id="logout-btn" class="btn btn-ghost" title="Cerrar sesión">Salir</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-nav">
+      <button class="nav-btn active" data-view="dashboard">Panel</button>
+      <button class="nav-btn" data-view="history">Historial</button>
+      <button class="nav-btn" data-view="stats">Estadísticas</button>
+    </nav>
+
+    <main class="app-main">
+
+      <!-- ─── VIEW: DASHBOARD ─── -->
+      <section id="view-dashboard" class="view active">
+
+        <!-- Status card -->
+        <div class="status-card" id="status-card">
+          <div class="status-indicator" id="status-indicator">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-label">Cargando...</span>
+          </div>
+          <div class="status-time" id="status-time"></div>
+          <div class="status-elapsed" id="status-elapsed"></div>
+        </div>
+
+        <!-- Main clock button -->
+        <div class="clock-action">
+          <button id="checkin-btn" class="clock-btn clock-btn--in" disabled>
+            <span class="clock-btn-icon">▶</span>
+            <span class="clock-btn-label">Fichar Entrada</span>
+            <span class="clock-btn-sub">Registrar inicio de jornada</span>
+          </button>
+          <button id="checkout-btn" class="clock-btn clock-btn--out" disabled>
+            <span class="clock-btn-icon">■</span>
+            <span class="clock-btn-label">Fichar Salida</span>
+            <span class="clock-btn-sub">Registrar fin de jornada</span>
+          </button>
+        </div>
+
+        <!-- Today summary -->
+        <div class="today-summary">
+          <h3>Hoy</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span class="summary-label">Entrada</span>
+              <span class="summary-value" id="today-checkin">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Salida</span>
+              <span class="summary-value" id="today-checkout">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Trabajado</span>
+              <span class="summary-value" id="today-worked">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Jornada</span>
+              <span class="summary-value" id="today-goal">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Week / Month balance -->
+        <div class="balance-cards">
+          <div class="balance-card" id="week-balance-card">
+            <div class="balance-header">
+              <span class="balance-period">Esta semana</span>
+              <span class="balance-badge" id="week-badge">—</span>
+            </div>
+            <div class="balance-bar-wrap">
+              <div class="balance-bar">
+                <div class="balance-bar-fill" id="week-bar"></div>
+              </div>
+            </div>
+            <div class="balance-footer">
+              <span id="week-worked">— h trabajadas</span>
+              <span id="week-goal">— h objetivo</span>
+            </div>
+          </div>
+
+          <div class="balance-card" id="month-balance-card">
+            <div class="balance-header">
+              <span class="balance-period">Este mes</span>
+              <span class="balance-badge" id="month-badge">—</span>
+            </div>
+            <div class="balance-bar-wrap">
+              <div class="balance-bar">
+                <div class="balance-bar-fill" id="month-bar"></div>
+              </div>
+            </div>
+            <div class="balance-footer">
+              <span id="month-worked">— h trabajadas</span>
+              <span id="month-goal">— h objetivo</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ─── VIEW: HISTORY ─── -->
+      <section id="view-history" class="view">
+        <div class="view-header">
+          <h2>Historial de fichajes</h2>
+          <div class="history-filters">
+            <select id="history-filter-month">
+              <!-- filled by JS -->
+            </select>
+          </div>
+        </div>
+        <div id="history-list" class="history-list">
+          <div class="empty-state">Cargando registros...</div>
+        </div>
+      </section>
+
+      <!-- ─── VIEW: STATS ─── -->
+      <section id="view-stats" class="view">
+        <div class="view-header">
+          <h2>Estadísticas</h2>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="stat-total-days">—</div>
+            <div class="stat-label">Días trabajados (mes)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-avg-hours">—</div>
+            <div class="stat-label">Horas/día promedio</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-overtime">—</div>
+            <div class="stat-label">Balance del mes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-punctuality">—</div>
+            <div class="stat-label">Días a tiempo</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <h3>Horas por día (últimas 2 semanas)</h3>
+          <div id="bar-chart" class="bar-chart"></div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MODAL: CONFIGURACIÓN
+  ═══════════════════════════════════════════ -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Configuración</h3>
+        <button class="modal-close" id="settings-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="settings-form">
+          <div class="field-group">
+            <label for="set-name">Nombre completo</label>
+            <input type="text" id="set-name" required />
+          </div>
+          <div class="field-group">
+            <label for="set-position">Cargo / Puesto</label>
+            <input type="text" id="set-position" placeholder="Ej: Desarrollador Frontend" />
+          </div>
+          <div class="field-group">
+            <label for="set-daily-hours">Horas de jornada diaria</label>
+            <input type="number" id="set-daily-hours" value="8" min="1" max="24" step="0.5" required />
+          </div>
+          <div class="field-group">
+            <label for="set-work-days">Días laborables por semana</label>
+            <select id="set-work-days">
+              <option value="5">Lunes a Viernes (5 días)</option>
+              <option value="6">Lunes a Sábado (6 días)</option>
+              <option value="4">4 días</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="set-timezone">Zona horaria</label>
+            <select id="set-timezone">
+              <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+              <option value="Europe/London">Europe/London (GMT/BST)</option>
+              <option value="America/New_York">America/New_York (EST/EDT)</option>
+              <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Guardar cambios</button>
+          <div id="settings-msg" class="form-success hidden"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ═══════════════════════════════════════════
+       SUPABASE CLIENT (CDN)
+  ═══════════════════════════════════════════ -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
