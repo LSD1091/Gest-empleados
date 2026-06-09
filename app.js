@@ -249,18 +249,23 @@ DOM.loginForm.addEventListener('submit', async e => {
   btn.textContent = 'Entrar';
 
   if (error) {
-    // Mensajes de error en español según el tipo
     const msgs = {
-      'Invalid login credentials':     'Email o contraseña incorrectos',
-      'Email not confirmed':            'El email no está confirmado. Ve a Supabase → Authentication → Users y confirma el usuario manualmente.',
-      'Too many requests':              'Demasiados intentos. Espera unos minutos.',
+      'Invalid login credentials': 'Email o contraseña incorrectos',
+      'Email not confirmed':        'Email no confirmado. Contacta al administrador.',
+      'Too many requests':          'Demasiados intentos. Espera unos minutos.',
     };
-    const msg = msgs[error.message] || error.message;
-    setMsg(DOM.loginError, msg);
+    setMsg(DOM.loginError, msgs[error.message] || error.message);
     return;
   }
 
-  // Login correcto — onAuthStateChange se encarga del resto
+  // Login correcto — forzar transición sin esperar onAuthStateChange
+  if (data?.user) {
+    State.user = data.user;
+    await load_profile();
+    show_screen('app');
+    await refresh_dashboard();
+    start_clock();
+  }
 });
 
 /** Logout */
