@@ -30,17 +30,9 @@ const DOM = {
 
   // Auth
   loginForm:     $('login-form'),
-  registerForm:  $('register-form'),
   loginEmail:    $('login-email'),
   loginPass:     $('login-password'),
   loginError:    $('login-error'),
-  regName:       $('reg-name'),
-  regEmail:      $('reg-email'),
-  regPass:       $('reg-password'),
-  regHours:      $('reg-hours'),
-  regError:      $('register-error'),
-  regSuccess:    $('register-success'),
-  tabBtns:       document.querySelectorAll('.tab-btn'),
   logoutBtn:     $('logout-btn'),
   settingsBtn:   $('settings-btn'),
 
@@ -248,7 +240,7 @@ DOM.loginForm.addEventListener('submit', async e => {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
-  const { error } = await sb().auth.signInWithPassword({
+  const { data, error } = await sb().auth.signInWithPassword({
     email:    DOM.loginEmail.value.trim(),
     password: DOM.loginPass.value,
   });
@@ -256,56 +248,24 @@ DOM.loginForm.addEventListener('submit', async e => {
   btn.disabled = false;
   btn.textContent = 'Entrar';
 
-  if (error) setMsg(DOM.loginError, error.message || 'Error al iniciar sesión');
-});
-
-/** Registro */
-DOM.registerForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  setMsg(DOM.regError, '');
-  setMsg(DOM.regSuccess, '');
-  const btn = DOM.registerForm.querySelector('button[type=submit]');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-
-  const { error } = await sb().auth.signUp({
-    email:    DOM.regEmail.value.trim(),
-    password: DOM.regPass.value,
-    options: {
-      data: {
-        full_name:   DOM.regName.value.trim(),
-        daily_hours: parseFloat(DOM.regHours.value) || 8,
-      }
-    }
-  });
-
-  btn.disabled = false;
-  btn.textContent = 'Crear cuenta';
-
   if (error) {
-    setMsg(DOM.regError, error.message || 'Error al registrarse');
-  } else {
-    setMsg(DOM.regSuccess, '✓ Cuenta creada. Revisa tu correo para confirmar el email.', 'success');
-    DOM.registerForm.reset();
+    // Mensajes de error en español según el tipo
+    const msgs = {
+      'Invalid login credentials':     'Email o contraseña incorrectos',
+      'Email not confirmed':            'El email no está confirmado. Ve a Supabase → Authentication → Users y confirma el usuario manualmente.',
+      'Too many requests':              'Demasiados intentos. Espera unos minutos.',
+    };
+    const msg = msgs[error.message] || error.message;
+    setMsg(DOM.loginError, msg);
+    return;
   }
+
+  // Login correcto — onAuthStateChange se encarga del resto
 });
 
 /** Logout */
 DOM.logoutBtn.addEventListener('click', async () => {
   await sb().auth.signOut();
-});
-
-/* ─────────────────────────────────────────────
-   TABS DE AUTH
-───────────────────────────────────────────── */
-DOM.tabBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    DOM.tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    document.querySelectorAll('.auth-form').forEach(f => {
-      f.classList.toggle('active', f.id === `${tab}-form`);
-    });
-  });
 });
 
 /* ─────────────────────────────────────────────

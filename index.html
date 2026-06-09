@@ -21,12 +21,6 @@
         <p>Gestión horaria para equipos</p>
       </div>
 
-      <!-- Tabs -->
-      <div class="auth-tabs">
-        <button class="tab-btn active" data-tab="login">Iniciar sesión</button>
-        <button class="tab-btn" data-tab="register">Registrarse</button>
-      </div>
-
       <!-- Login Form -->
       <form id="login-form" class="auth-form active">
         <div class="field-group">
@@ -39,29 +33,6 @@
         </div>
         <button type="submit" class="btn btn-primary btn-full">Entrar</button>
         <div id="login-error" class="form-error hidden"></div>
-      </form>
-
-      <!-- Register Form -->
-      <form id="register-form" class="auth-form">
-        <div class="field-group">
-          <label for="reg-name">Nombre completo</label>
-          <input type="text" id="reg-name" placeholder="Ana García" required />
-        </div>
-        <div class="field-group">
-          <label for="reg-email">Correo electrónico</label>
-          <input type="email" id="reg-email" placeholder="tu@email.com" required />
-        </div>
-        <div class="field-group">
-          <label for="reg-password">Contraseña</label>
-          <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6" />
-        </div>
-        <div class="field-group">
-          <label for="reg-hours">Jornada laboral (horas/día)</label>
-          <input type="number" id="reg-hours" value="8" min="1" max="24" step="0.5" required />
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Crear cuenta</button>
-        <div id="register-error" class="form-error hidden"></div>
-        <div id="register-success" class="form-success hidden"></div>
       </form>
     </div>
   </div>
