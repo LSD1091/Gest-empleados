@@ -203,9 +203,9 @@ async function init() {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && !initialized) {
       initialized = true;
       State.user = session.user;
-      try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
+      await load_profile();
       show_screen('app');
-      try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
+      await refresh_dashboard();
       start_clock();
     }
   });
