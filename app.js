@@ -185,30 +185,30 @@ function show_screen(screen) {
 
 /** Inicializa la app: comprueba si hay sesión activa */
 async function init() {
-  // Escuchar cambios de sesión — solo reaccionar a SIGNED_IN y SIGNED_OUT
+  let initialized = false;
+
   sb().auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth event:', event);
+    console.log('Auth event:', event, '| user:', session?.user?.email);
+
     if (event === 'SIGNED_OUT') {
+      initialized = false;
       State.user    = null;
       State.profile = null;
       clearInterval(State.elapsedTimer);
       clearInterval(State.clockTimer);
       show_screen('auth');
+      return;
     }
-    // SIGNED_IN lo maneja el propio botón de login directamente
-  });
 
-  // Comprobar sesión existente al cargar la página
-  const { data: { session } } = await sb().auth.getSession();
-  if (session?.user) {
-    State.user = session.user;
-    try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
-    show_screen('app');
-    try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
-    start_clock();
-  } else {
-    show_screen('auth');
-  }
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && !initialized) {
+      initialized = true;
+      State.user = session.user;
+      try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
+      show_screen('app');
+      try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
+      start_clock();
+    }
+  });
 }
 
 /** Carga el perfil del usuario desde public.profiles */
@@ -259,17 +259,8 @@ DOM.loginForm.addEventListener('submit', async e => {
       'Too many requests':          'Demasiados intentos. Espera unos minutos.',
     };
     setMsg(DOM.loginError, msgs[error.message] || error.message);
-    return;
   }
-
-  // Login correcto — forzar transición sin esperar onAuthStateChange
-  if (data?.user) {
-    State.user = data.user;
-    try { await load_profile(); } catch(e) { console.warn('load_profile error:', e); }
-    show_screen('app');
-    try { await refresh_dashboard(); } catch(e) { console.warn('refresh_dashboard error:', e); }
-    start_clock();
-  }
+  // Si no hay error, onAuthStateChange (SIGNED_IN) se encarga de la transición
 });
 
 /** Logout */
