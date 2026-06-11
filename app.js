@@ -21,54 +21,47 @@ const State = {
 };
 
 /* ─────────────────────────────────────────────
-   REFERENCIAS DOM — acceso lazy para evitar
-   que un null rompa todo el script
+   REFERENCIAS DOM
 ───────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 
-// Proxy lazy: DOM.foo === document.getElementById('foo') evaluado en el momento de uso
-const DOM = new Proxy({}, { get: (_, key) => {
-  const idMap = {
-    authScreen:'auth-screen', appScreen:'app-screen',
-    loginForm:'login-form', loginEmail:'login-email', loginPass:'login-password',
-    loginError:'login-error', logoutBtn:'logout-btn', settingsBtn:'settings-btn',
-    headerUsername:'header-username',
-    statusDot:'status-dot', statusLabel:'status-label', statusTime:'status-time',
-    statusElapsed:'status-elapsed', checkinBtn:'checkin-btn', checkoutBtn:'checkout-btn',
-    todayCheckin:'today-checkin', todayCheckout:'today-checkout',
-    todayWorked:'today-worked', todayGoal:'today-goal',
-    weekBadge:'week-badge', weekBar:'week-bar', weekWorked:'week-worked', weekGoal:'week-goal',
-    monthBadge:'month-badge', monthBar:'month-bar', monthWorked:'month-worked', monthGoal:'month-goal',
-    historyFilterMonth:'history-filter-month', historyList:'history-list',
-    statTotalDays:'stat-total-days', statAvgHours:'stat-avg-hours',
-    statOvertime:'stat-overtime', statPunctuality:'stat-punctuality',
-    barChart:'bar-chart', statsFilterMonth:'stats-filter-month', exportXlsxBtn:'export-xlsx-btn',
-    editModeBtn:'edit-mode-btn', editModeBanner:'edit-mode-banner', editModeExit:'edit-mode-exit',
-    pinModal:'pin-modal', pinClose:'pin-close', pinInput:'pin-input',
-    pinConfirm:'pin-confirm', pinError:'pin-error',
-    entryEditModal:'entry-edit-modal', entryEditClose:'entry-edit-close',
-    entryEditDateLabel:'entry-edit-date-label', entryEditIn:'entry-edit-in',
-    entryEditOut:'entry-edit-out', entryEditId:'entry-edit-id', entryEditDate:'entry-edit-date',
-    entryEditSave:'entry-edit-save', entryEditDelete:'entry-edit-delete', entryEditMsg:'entry-edit-msg',
-    dayEditModal:'day-edit-modal', dayEditClose:'day-edit-close', dayEditLabel:'day-edit-label',
-    dayEditDate:'day-edit-date', dayEditSave:'day-edit-save', dayEditReset:'day-edit-reset',
-    dayEditMsg:'day-edit-msg', dayEditLabelField:'day-edit-label-field',
-    dayEditHoursField:'day-edit-hours-field', dayEditLabelInput:'day-edit-label-input',
-    dayEditHoursInput:'day-edit-hours-input',
-    vacFilterYear:'vac-filter-year', vacUsed:'vac-used', vacTotal:'vac-total',
-    vacRemaining:'vac-remaining', pendUsed:'pend-used', pendBalance:'pend-balance',
-    localCount:'local-count', vacList:'vac-list', pendList:'pend-list', localList:'local-list',
-    settingsModal:'settings-modal', settingsClose:'settings-close', settingsForm:'settings-form',
-    setName:'set-name', setPosition:'set-position', setDailyHours:'set-daily-hours',
-    setWorkDays:'set-work-days', setTimezone:'set-timezone',
-    setVacationDays:'set-vacation-days', setPendingHours:'set-pending-hours',
-    settingsMsg:'settings-msg', toast:'toast',
-    navBtns: null,  // especial — ver abajo
-  };
-  if (key === 'navBtns') return document.querySelectorAll('.nav-btn');
-  if (key in idMap) return document.getElementById(idMap[key]);
-  return undefined;
-}});
+const DOM = {
+  authScreen:$('auth-screen'), appScreen:$('app-screen'),
+  loginForm:$('login-form'), loginEmail:$('login-email'), loginPass:$('login-password'),
+  loginError:$('login-error'), logoutBtn:$('logout-btn'), settingsBtn:$('settings-btn'),
+  headerUsername:$('header-username'),
+  navBtns:document.querySelectorAll('.nav-btn'),
+  statusDot:$('status-dot'), statusLabel:$('status-label'), statusTime:$('status-time'),
+  statusElapsed:$('status-elapsed'), checkinBtn:$('checkin-btn'), checkoutBtn:$('checkout-btn'),
+  todayCheckin:$('today-checkin'), todayCheckout:$('today-checkout'),
+  todayWorked:$('today-worked'), todayGoal:$('today-goal'),
+  weekBadge:$('week-badge'), weekBar:$('week-bar'), weekWorked:$('week-worked'), weekGoal:$('week-goal'),
+  monthBadge:$('month-badge'), monthBar:$('month-bar'), monthWorked:$('month-worked'), monthGoal:$('month-goal'),
+  historyFilterMonth:$('history-filter-month'), historyList:$('history-list'),
+  statTotalDays:$('stat-total-days'), statAvgHours:$('stat-avg-hours'),
+  statOvertime:$('stat-overtime'), statPunctuality:$('stat-punctuality'),
+  barChart:$('bar-chart'), statsFilterMonth:$('stats-filter-month'), exportXlsxBtn:$('export-xlsx-btn'),
+  editModeBtn:$('edit-mode-btn'), editModeBanner:$('edit-mode-banner'), editModeExit:$('edit-mode-exit'),
+  pinModal:$('pin-modal'), pinClose:$('pin-close'), pinInput:$('pin-input'),
+  pinConfirm:$('pin-confirm'), pinError:$('pin-error'),
+  entryEditModal:$('entry-edit-modal'), entryEditClose:$('entry-edit-close'),
+  entryEditDateLabel:$('entry-edit-date-label'), entryEditIn:$('entry-edit-in'),
+  entryEditOut:$('entry-edit-out'), entryEditId:$('entry-edit-id'), entryEditDate:$('entry-edit-date'),
+  entryEditSave:$('entry-edit-save'), entryEditDelete:$('entry-edit-delete'), entryEditMsg:$('entry-edit-msg'),
+  dayEditModal:$('day-edit-modal'), dayEditClose:$('day-edit-close'), dayEditLabel:$('day-edit-label'),
+  dayEditDate:$('day-edit-date'), dayEditSave:$('day-edit-save'), dayEditReset:$('day-edit-reset'),
+  dayEditMsg:$('day-edit-msg'), dayEditLabelField:$('day-edit-label-field'),
+  dayEditHoursField:$('day-edit-hours-field'), dayEditLabelInput:$('day-edit-label-input'),
+  dayEditHoursInput:$('day-edit-hours-input'),
+  vacFilterYear:$('vac-filter-year'), vacUsed:$('vac-used'), vacTotal:$('vac-total'),
+  vacRemaining:$('vac-remaining'), pendUsed:$('pend-used'), pendBalance:$('pend-balance'),
+  localCount:$('local-count'), vacList:$('vac-list'), pendList:$('pend-list'), localList:$('local-list'),
+  settingsModal:$('settings-modal'), settingsClose:$('settings-close'), settingsForm:$('settings-form'),
+  setName:$('set-name'), setPosition:$('set-position'), setDailyHours:$('set-daily-hours'),
+  setWorkDays:$('set-work-days'), setTimezone:$('set-timezone'),
+  setVacationDays:$('set-vacation-days'), setPendingHours:$('set-pending-hours'),
+  settingsMsg:$('settings-msg'), toast:$('toast'),
+};
 
 /* ─────────────────────────────────────────────
    HELPERS DE UI
@@ -1200,8 +1193,6 @@ DOM.editModeBtn.addEventListener('click', () => {
   }
   setMsg(DOM.pinError, '');
   DOM.pinInput.value = '';
-  DOM.pinNew.value   = '';
-  setMsg(DOM.pinSaveMsg, '');
   DOM.pinModal.classList.remove('hidden');
   setTimeout(() => DOM.pinInput.focus(), 100);
 });
