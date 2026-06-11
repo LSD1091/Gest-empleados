@@ -323,6 +323,47 @@ function update_status_ui(isWorking) {
   DOM.checkoutBtn.disabled = !isWorking;  // No puede salir si no entró
 }
 
+/* ─────────────────────────────────────────────
+   GEOLOCALIZACIÓN — opcional, no bloquea
+───────────────────────────────────────────── */
+
+/**
+ * Intenta obtener la posición del dispositivo.
+ * Resuelve siempre: con { lat, lng, addr } si tiene éxito,
+ * o con null si el usuario deniega o no está disponible.
+ */
+function get_location() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        // Reverse geocoding con Nominatim (OpenStreetMap, sin API key)
+        let addr = '';
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const json = await res.json();
+          // Construir dirección legible: calle + número + ciudad
+          const r = json.address || {};
+          const parts = [
+            r.road || r.pedestrian || r.footway || '',
+            r.house_number || '',
+            r.city || r.town || r.village || r.municipality || '',
+          ].filter(Boolean);
+          addr = parts.join(', ');
+        } catch { /* sin addr si falla el geocoding */ }
+        resolve({ lat, lng, addr });
+      },
+      () => resolve(null),   // denegado o error → null, no bloquear
+      { timeout: 6000, maximumAge: 60000 }
+    );
+  });
+}
+
 /** Fichar Entrada */
 DOM.checkinBtn.addEventListener('click', async () => {
   if (State.activeEntry) {
@@ -333,25 +374,39 @@ DOM.checkinBtn.addEventListener('click', async () => {
   DOM.checkinBtn.innerHTML = `<span class="spinner"></span><span class="clock-btn-label">Fichando...</span>`;
 
   const now = new Date().toISOString();
+
+  // Intentar obtener ubicación en paralelo (máx 6s)
+  const loc = await get_location();
+
+  const payload = {
+    user_id:  State.user.id,
+    check_in: now,
+    ...(loc && {
+      checkin_lat:  loc.lat,
+      checkin_lng:  loc.lng,
+      checkin_addr: loc.addr,
+    }),
+  };
+
   const { data, error } = await sb()
     .from('time_entries')
-    .insert({ user_id: State.user.id, check_in: now })
+    .insert(payload)
     .select()
     .single();
 
   if (error) {
     showToast('Error al fichar entrada: ' + error.message, 'error');
-    DOM.checkinBtn.innerHTML = `<span class="clock-btn-icon">▶</span><span class="clock-btn-label">Fichar Entrada</span><span class="clock-btn-sub">Registrar inicio de jornada</span>`;
     DOM.checkinBtn.disabled = false;
   } else {
     State.activeEntry = data;
     update_status_ui(true);
     start_elapsed_timer(data.check_in);
     DOM.todayCheckin.textContent = fmt_time(data.check_in);
-    showToast('✓ Entrada registrada a las ' + fmt_time(now), 'success');
-    DOM.checkinBtn.innerHTML = `<span class="clock-btn-icon">▶</span><span class="clock-btn-label">Fichar Entrada</span><span class="clock-btn-sub">Registrar inicio de jornada</span>`;
+    const locMsg = loc?.addr ? ` · 📍 ${loc.addr}` : '';
+    showToast('✓ Entrada registrada a las ' + fmt_time(now) + locMsg, 'success', 4000);
     await refresh_balance();
   }
+  DOM.checkinBtn.innerHTML = `<span class="clock-btn-icon">▶</span><span class="clock-btn-label">Fichar Entrada</span><span class="clock-btn-sub">Registrar inicio de jornada</span>`;
 });
 
 /** Fichar Salida */
@@ -364,9 +419,22 @@ DOM.checkoutBtn.addEventListener('click', async () => {
   DOM.checkoutBtn.innerHTML = `<span class="spinner"></span><span class="clock-btn-label">Fichando...</span>`;
 
   const now = new Date().toISOString();
+
+  // Intentar obtener ubicación en paralelo (máx 6s)
+  const loc = await get_location();
+
+  const payload = {
+    check_out: now,
+    ...(loc && {
+      checkout_lat:  loc.lat,
+      checkout_lng:  loc.lng,
+      checkout_addr: loc.addr,
+    }),
+  };
+
   const { data, error } = await sb()
     .from('time_entries')
-    .update({ check_out: now })
+    .update(payload)
     .eq('id', State.activeEntry.id)
     .eq('user_id', State.user.id)
     .select()
@@ -385,7 +453,8 @@ DOM.checkoutBtn.addEventListener('click', async () => {
     const mins = diff_minutes(data.check_in, data.check_out);
     DOM.todayCheckout.textContent = fmt_time(now);
     DOM.todayWorked.textContent   = fmt_duration(mins);
-    showToast('✓ Salida registrada. Trabajaste ' + fmt_duration(mins), 'success');
+    const locMsg = loc?.addr ? ` · 📍 ${loc.addr}` : '';
+    showToast('✓ Salida registrada. Trabajaste ' + fmt_duration(mins) + locMsg, 'success', 4000);
     await refresh_balance();
   }
 });
@@ -593,11 +662,13 @@ async function render_history() {
           <span class="time-icon">▶</span>
           <span class="time-val">${fmt_time(e.check_in)}</span>
           <span class="time-label">entrada</span>
+          ${e.checkin_addr ? `<span class="time-loc" title="${e.checkin_addr}">📍</span>` : ''}
         </div>
         <div class="history-time-row">
           <span class="time-icon">■</span>
           <span class="time-val">${isActive ? '<em style="opacity:.5">activo</em>' : fmt_time(e.check_out)}</span>
           <span class="time-label">salida</span>
+          ${e.checkout_addr ? `<span class="time-loc" title="${e.checkout_addr}">📍</span>` : ''}
         </div>
       </div>
       <div class="history-total">
