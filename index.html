@@ -172,6 +172,10 @@
       <section id="view-stats" class="view">
         <div class="view-header">
           <h2>Estadísticas</h2>
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <select id="stats-filter-month" style="font-family:var(--font);font-size:.875rem;padding:.45rem .75rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;outline:none;"></select>
+            <button id="export-xlsx-btn" class="btn btn-primary">⬇ Exportar Excel</button>
+          </div>
         </div>
         <div class="stats-grid">
           <div class="stat-card">
@@ -191,6 +195,28 @@
             <div class="stat-label">Días a tiempo</div>
           </div>
         </div>
+
+        <!-- Calendario mensual -->
+        <div class="calendar-container">
+          <div class="calendar-header">
+            <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
+            <span id="cal-title" class="cal-title"></span>
+            <button class="cal-nav-btn" id="cal-next">&#8250;</button>
+          </div>
+          <div class="calendar-grid-header">
+            <span>Lun</span><span>Mar</span><span>Mié</span>
+            <span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+          <div class="calendar-legend">
+            <span class="leg-item"><span class="leg-dot" style="background:var(--green)"></span>Completo</span>
+            <span class="leg-item"><span class="leg-dot" style="background:var(--amber)"></span>Parcial</span>
+            <span class="leg-item"><span class="leg-dot" style="background:var(--red)"></span>Falta</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#C084FC"></span>Festivo</span>
+            <span class="leg-item"><span class="leg-dot" style="background:var(--border)"></span>Fin de semana</span>
+          </div>
+        </div>
+
         <div class="chart-container">
           <h3>Horas por día (últimas 2 semanas)</h3>
           <div id="bar-chart" class="bar-chart"></div>
@@ -256,6 +282,7 @@
        SUPABASE CLIENT (CDN)
   ═══════════════════════════════════════════ -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
