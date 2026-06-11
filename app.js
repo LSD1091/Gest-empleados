@@ -88,9 +88,6 @@ const DOM = {
   pinInput:       $('pin-input'),
   pinConfirm:     $('pin-confirm'),
   pinError:       $('pin-error'),
-  pinNew:         $('pin-new'),
-  pinSave:        $('pin-save'),
-  pinSaveMsg:     $('pin-save-msg'),
 
   // Entry edit modal
   entryEditModal:   $('entry-edit-modal'),
@@ -1284,28 +1281,10 @@ DOM.editModeBtn.addEventListener('click', () => {
 DOM.pinClose.addEventListener('click', () => DOM.pinModal.classList.add('hidden'));
 DOM.pinModal.addEventListener('click', e => { if (e.target === DOM.pinModal) DOM.pinModal.classList.add('hidden'); });
 
-/** Guardar nuevo PIN */
-DOM.pinSave.addEventListener('click', async () => {
-  const pin = DOM.pinNew.value.trim();
-  if (!pin) { return; }
-  const { error } = await sb().from('profiles')
-    .update({ edit_pin: pin })
-    .eq('id', State.user.id);
-  if (error) { setMsg(DOM.pinSaveMsg, 'Error: ' + error.message); return; }
-  State.profile.edit_pin = pin;
-  setMsg(DOM.pinSaveMsg, '✓ PIN guardado', 'success');
-  DOM.pinNew.value = '';
-});
-
 /** Confirmar PIN para entrar en modo edición */
 DOM.pinConfirm.addEventListener('click', () => {
   const entered = DOM.pinInput.value.trim();
-  const stored  = State.profile?.edit_pin || '';
-  if (!stored) {
-    setMsg(DOM.pinError, 'No tienes PIN configurado. Guarda uno primero.');
-    return;
-  }
-  if (entered !== stored) {
+  if (entered !== '2704') {
     setMsg(DOM.pinError, 'PIN incorrecto.');
     return;
   }
