@@ -981,6 +981,151 @@ body {
 /* ── Export button ─────────────────────────── */
 #export-xlsx-btn { font-size: .8rem; padding: .45rem 1rem; }
 
+/* ── Edit mode banner ──────────────────────── */
+.edit-mode-banner {
+  background: linear-gradient(90deg, #F59E0B, #D97706);
+  color: white;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+}
+.edit-mode-banner.hidden { display: none; }
+
+.edit-mode-toggle.active {
+  color: #F59E0B !important;
+  background: rgba(245,158,11,.15) !important;
+}
+
+/* ── Day type selector ─────────────────────── */
+.day-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .4rem;
+}
+.day-type-btn {
+  font-family: var(--font);
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .6rem .5rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text);
+  transition: all .15s;
+  text-align: left;
+}
+.day-type-btn:hover { background: var(--border); }
+.day-type-btn.selected {
+  background: var(--navy);
+  color: white;
+  border-color: var(--navy);
+}
+
+/* ── Edit icon on history items ────────────── */
+.edit-entry-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .85rem;
+  padding: .25rem .4rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.edit-entry-btn:hover { background: var(--bg); color: var(--navy); }
+
+/* Calendar edit indicator */
+.cal-day.editable { cursor: pointer; }
+.cal-day.editable:hover { box-shadow: 0 0 0 2px var(--amber); }
+.cal-edit-dot {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+/* Override type colors */
+.cal-day.override-national  { background: #F3E8FF; }
+.cal-day.override-local     { background: #FDF4FF; }
+.cal-day.override-vacation  { background: #ECFEFF; }
+.cal-day.override-pending   { background: #FEF2F2; }
+
+/* ── Vacaciones tab ────────────────────────── */
+.vac-saldo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 640px) { .vac-saldo-grid { grid-template-columns: 1fr; } }
+
+.vac-card {
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  box-shadow: var(--shadow-sm);
+}
+.vac-card--vacation { background: linear-gradient(135deg, #ECFEFF, #CFFAFE); border: 1.5px solid #67E8F9; }
+.vac-card--pending  { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); border: 1.5px solid #FCA5A5; }
+.vac-card--local    { background: linear-gradient(135deg, #FDF4FF, #FAE8FF); border: 1.5px solid #F0ABFC; }
+
+.vac-card-icon { font-size: 1.5rem; line-height: 1; }
+.vac-card-info { flex: 1; }
+.vac-card-title { font-size: .875rem; font-weight: 700; color: var(--navy); }
+.vac-card-sub   { font-size: .75rem; color: var(--text-muted); margin-top: .1rem; }
+.vac-card-numbers { text-align: right; }
+.vac-big { font-size: 1.8rem; font-weight: 800; color: var(--navy); line-height: 1; font-variant-numeric: tabular-nums; }
+.vac-small { font-size: .7rem; color: var(--text-muted); margin-top: .1rem; }
+.vac-remaining { font-size: .75rem; font-weight: 600; color: var(--green-dim); margin-top: .2rem; }
+
+.vac-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 768px) { .vac-detail-grid { grid-template-columns: 1fr; } }
+
+.vac-detail-block {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+.vac-detail-block h3 {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: .75rem;
+}
+.vac-list { display: flex; flex-direction: column; gap: .4rem; }
+.vac-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .5rem .75rem;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: .8rem;
+}
+.vac-item-date { font-weight: 600; color: var(--navy); }
+.vac-item-label { color: var(--text-muted); flex: 1; margin: 0 .5rem; }
+.vac-item-hours { font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.vac-empty { text-align: center; color: var(--text-muted); padding: 1.5rem; font-size: .875rem; }
+
+/* ── Small modal variant ───────────────────── */
+.modal--sm { max-width: 360px; }
+
 /* ── Loading spinner ───────────────────────── */
 .spinner {
   width: 20px; height: 20px;

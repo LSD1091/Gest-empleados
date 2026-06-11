@@ -11,11 +11,13 @@
    ESTADO GLOBAL
 ───────────────────────────────────────────── */
 const State = {
-  user:         null,   // Objeto de usuario de Supabase Auth
-  profile:      null,   // Fila de public.profiles
-  activeEntry:  null,   // Fichaje abierto (sin check_out)
-  elapsedTimer: null,   // setInterval del cronómetro
-  clockTimer:   null,   // setInterval del reloj
+  user:         null,
+  profile:      null,
+  activeEntry:  null,
+  elapsedTimer: null,
+  clockTimer:   null,
+  editMode:     false,    // modo edición activo
+  dayOverrides: new Map(),// Map de "YYYY-MM-DD" → override object
 };
 
 /* ─────────────────────────────────────────────
@@ -75,7 +77,59 @@ const DOM = {
   statsFilterMonth: $('stats-filter-month'),
   exportXlsxBtn:    $('export-xlsx-btn'),
 
-  // Settings modal
+  // Edit mode
+  editModeBtn:    $('edit-mode-btn'),
+  editModeBanner: $('edit-mode-banner'),
+  editModeExit:   $('edit-mode-exit'),
+
+  // PIN modal
+  pinModal:       $('pin-modal'),
+  pinClose:       $('pin-close'),
+  pinInput:       $('pin-input'),
+  pinConfirm:     $('pin-confirm'),
+  pinError:       $('pin-error'),
+  pinNew:         $('pin-new'),
+  pinSave:        $('pin-save'),
+  pinSaveMsg:     $('pin-save-msg'),
+
+  // Entry edit modal
+  entryEditModal:   $('entry-edit-modal'),
+  entryEditClose:   $('entry-edit-close'),
+  entryEditDateLabel: $('entry-edit-date-label'),
+  entryEditIn:      $('entry-edit-in'),
+  entryEditOut:     $('entry-edit-out'),
+  entryEditId:      $('entry-edit-id'),
+  entryEditDate:    $('entry-edit-date'),
+  entryEditSave:    $('entry-edit-save'),
+  entryEditDelete:  $('entry-edit-delete'),
+  entryEditMsg:     $('entry-edit-msg'),
+
+  // Day edit modal
+  dayEditModal:     $('day-edit-modal'),
+  dayEditClose:     $('day-edit-close'),
+  dayEditLabel:     $('day-edit-label'),
+  dayEditDate:      $('day-edit-date'),
+  dayEditSave:      $('day-edit-save'),
+  dayEditReset:     $('day-edit-reset'),
+  dayEditMsg:       $('day-edit-msg'),
+  dayEditLabelField:$('day-edit-label-field'),
+  dayEditHoursField:$('day-edit-hours-field'),
+  dayEditLabelInput:$('day-edit-label-input'),
+  dayEditHoursInput:$('day-edit-hours-input'),
+
+  // Vacaciones
+  vacFilterYear:  $('vac-filter-year'),
+  vacUsed:        $('vac-used'),
+  vacTotal:       $('vac-total'),
+  vacRemaining:   $('vac-remaining'),
+  pendUsed:       $('pend-used'),
+  pendBalance:    $('pend-balance'),
+  localCount:     $('local-count'),
+  vacList:        $('vac-list'),
+  pendList:       $('pend-list'),
+  localList:      $('local-list'),
+
+  // Settings
   settingsModal:  $('settings-modal'),
   settingsClose:  $('settings-close'),
   settingsForm:   $('settings-form'),
@@ -84,6 +138,8 @@ const DOM = {
   setDailyHours:  $('set-daily-hours'),
   setWorkDays:    $('set-work-days'),
   setTimezone:    $('set-timezone'),
+  setVacationDays:$('set-vacation-days'),
+  setPendingHours:$('set-pending-hours'),
   settingsMsg:    $('settings-msg'),
 
   toast: $('toast'),
@@ -290,8 +346,9 @@ DOM.navBtns.forEach(btn => {
     document.querySelectorAll('.view').forEach(v => {
       v.classList.toggle('active', v.id === `view-${view}`);
     });
-    if (view === 'history') await render_history();
-    if (view === 'stats')   await render_stats();
+    if (view === 'history')   await render_history();
+    if (view === 'stats')     await render_stats();
+    if (view === 'vacations') await render_vacations();
   });
 });
 
@@ -565,6 +622,13 @@ function populate_month_filter() {
 
 DOM.historyFilterMonth.addEventListener('change', render_history);
 
+// Delegación: botones de editar fichaje
+DOM.historyList.addEventListener('click', e => {
+  const btn = e.target.closest('.edit-entry-btn');
+  if (!btn || !State.editMode) return;
+  open_entry_edit_modal(btn.dataset.id, btn.dataset.date, btn.dataset.in, btn.dataset.out);
+});
+
 async function render_history() {
   const val  = DOM.historyFilterMonth.value;
   const [y, m] = val.split('-').map(Number);
@@ -622,6 +686,7 @@ async function render_history() {
         <div class="history-hours">${mins != null ? fmt_duration(mins) : '—'}</div>
         ${diff != null ? `<div class="history-balance ${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${fmt_duration(diff)}</div>` : ''}
       </div>
+      ${State.editMode ? `<button class="edit-entry-btn" data-id="${e.id}" data-date="${fmt_date_key(d)}" data-in="${fmt_time(e.check_in)}" data-out="${e.check_out ? fmt_time(e.check_out) : ''}" title="Editar">✏️</button>` : ''}
     `;
 
     DOM.historyList.appendChild(item);
@@ -740,8 +805,10 @@ async function render_stats() {
     if (sel.value !== val) sel.value = val;
   }
 
-  // Actualizar título del calendario
   $('cal-title').textContent = monthStart.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+  // Cargar overrides del mes
+  await load_day_overrides(selYear, selMonth);
 
   // Obtener fichajes del mes
   const { data: entries } = await sb()
@@ -752,22 +819,20 @@ async function render_stats() {
     .lte('check_in', monthEnd.toISOString())
     .order('check_in', { ascending: true });
 
-  // Agrupar por día (clave YYYY-MM-DD)
+  // Agrupar por día
   const byDay = {};
   for (const e of (entries || [])) {
     const d   = new Date(e.check_in);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const key = fmt_date_key(d);
     if (!byDay[key]) byDay[key] = { entries: [], totalMins: 0 };
-    const out  = e.check_out ? e.check_out : (e.check_out === null && key === fmt_date_key(now) ? now.toISOString() : null);
+    const out  = e.check_out ? e.check_out : (key === fmt_date_key(now) ? now.toISOString() : null);
     const mins = out ? diff_minutes(e.check_in, out) : 0;
     byDay[key].entries.push(e);
     byDay[key].totalMins += mins;
   }
 
-  // ── Tarjetas de estadísticas ──
-  const completedDays = Object.keys(byDay).filter(k => {
-    const d = new Date(k); return d <= now;
-  });
+  // Tarjetas de estadísticas
+  const completedDays = Object.keys(byDay).filter(k => new Date(k) <= now);
   const totalDays = completedDays.length;
   const avgMins   = totalDays > 0
     ? Object.values(byDay).reduce((a, b) => a + b.totalMins, 0) / totalDays : 0;
@@ -785,10 +850,8 @@ async function render_stats() {
   DOM.statOvertime.style.color     = diffMins >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
   DOM.statPunctuality.textContent  = `${onTime}/${totalDays}`;
 
-  // ── Calendario ──
   render_calendar(selYear, selMonth, byDay, dailyH, workDays);
 
-  // ── Gráfico de barras ──
   const twoWeeksAgo = new Date();
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 13);
   twoWeeksAgo.setHours(0, 0, 0, 0);
@@ -813,11 +876,9 @@ function render_calendar(year, month, byDay, dailyH, workDaysPerWeek) {
   const firstDay = new Date(year, month, 1);
   const lastDay  = new Date(year, month + 1, 0);
 
-  // Offset: lunes = 0
   let startDow = firstDay.getDay() - 1;
   if (startDow < 0) startDow = 6;
 
-  // Celdas vacías al inicio
   for (let i = 0; i < startDow; i++) {
     const empty = document.createElement('div');
     empty.className = 'cal-day empty';
@@ -827,58 +888,90 @@ function render_calendar(year, month, byDay, dailyH, workDaysPerWeek) {
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const key    = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const date   = new Date(year, month, day);
-    const dow    = date.getDay(); // 0=dom, 6=sab
+    const dow    = date.getDay();
     const isFuture   = date > now && key !== today;
     const isWeekend  = dow === 0 || dow === 6;
-    const isHoliday  = holidays.has(key);
-    const holidayName= holidays.get(key) || '';
-    const isWorkDay  = !isWeekend && !isHoliday;
-    const dayData    = byDay[key];
     const isToday    = key === today;
 
+    // Override manual tiene prioridad
+    const override   = State.dayOverrides.get(key);
+    const autoHoliday = holidays.has(key);
+
     let cls = 'cal-day';
-    if (isFuture)       cls += ' future';
-    else if (isHoliday) cls += ' holiday';
-    else if (isWeekend) cls += ' weekend';
-    else if (dayData) {
-      const pct = dayData.totalMins / (dailyH * 60);
-      if (pct >= 0.95)      cls += ' worked';
-      else if (pct >= 0.2)  cls += ' partial';
-      else                  cls += ' missed';
-    } else if (isWorkDay && !isFuture && date < now) {
+    let holidayName = '';
+
+    if (override) {
+      // Tipo override
+      if (override.type === 'national_holiday') { cls += ' override-national'; holidayName = override.label || holidays.get(key) || 'Festivo nacional'; }
+      else if (override.type === 'local_holiday') { cls += ' override-local'; holidayName = override.label || 'Festivo laboral'; }
+      else if (override.type === 'vacation')       { cls += ' override-vacation'; holidayName = override.label || 'Vacaciones'; }
+      else if (override.type === 'pending_hours')  { cls += ' override-pending'; holidayName = override.label || 'Horas pendientes'; }
+      else { // work — tratar como normal
+        if (isFuture) cls += ' future';
+        else if (byDay[key]) {
+          const pct = byDay[key].totalMins / (dailyH * 60);
+          cls += pct >= 0.95 ? ' worked' : pct >= 0.2 ? ' partial' : ' missed';
+        } else if (!isFuture && date < now) cls += ' missed';
+      }
+    } else if (isFuture) {
+      cls += ' future';
+    } else if (autoHoliday) {
+      cls += ' holiday'; holidayName = holidays.get(key);
+    } else if (isWeekend) {
+      cls += ' weekend';
+    } else if (byDay[key]) {
+      const pct = byDay[key].totalMins / (dailyH * 60);
+      cls += pct >= 0.95 ? ' worked' : pct >= 0.2 ? ' partial' : ' missed';
+    } else if (!isFuture && date < now) {
       cls += ' missed';
     }
+
     if (isToday) cls += ' today';
+    if (State.editMode && !isFuture) cls += ' editable';
+    if (override) cls += ' has-override';
 
     const cell = document.createElement('div');
     cell.className = cls;
 
     let inner = `<span class="cal-day-num">${day}</span>`;
 
-    if (dayData && !isFuture) {
-      const h    = (dayData.totalMins / 60).toFixed(1);
-      const diff = dayData.totalMins - dailyH * 60;
+    if (byDay[key] && !isFuture && (!override || override.type === 'work')) {
+      const h    = (byDay[key].totalMins / 60).toFixed(1);
+      const diff = byDay[key].totalMins - dailyH * 60;
       const sign = diff >= 0 ? '+' : '';
       const balClass = diff >= 0 ? 'pos' : 'neg';
       inner += `<span class="cal-hours">${h}h</span>`;
-      if (isWorkDay) {
+      if (!isWeekend && !autoHoliday) {
         inner += `<span class="cal-balance ${balClass}">${sign}${fmt_duration(diff)}</span>`;
       }
     }
 
-    if (isHoliday) {
+    if (override && override.type !== 'work') {
+      const overrideH = override.type === 'vacation' || override.type === 'pending_hours'
+        ? `${override.hours || dailyH}h` : '';
       inner += `<span class="cal-holiday-name">${holidayName}</span>`;
+      if (overrideH) inner += `<span class="cal-hours">${overrideH}</span>`;
+    } else if (autoHoliday && !override) {
+      inner += `<span class="cal-holiday-name">${holidayName}</span>`;
+    }
+
+    if (State.editMode && !isFuture) {
+      inner += `<span class="cal-edit-dot" title="Editar día"></span>`;
     }
 
     cell.innerHTML = inner;
 
-    // Tooltip
-    if (dayData) {
-      const entries = dayData.entries;
-      const tip = entries.map(e =>
+    // Tooltip con fichajes
+    if (byDay[key]) {
+      const tip = byDay[key].entries.map(e =>
         `${fmt_time(e.check_in)} – ${e.check_out ? fmt_time(e.check_out) : 'activo'}`
       ).join('\n');
       cell.title = tip;
+    }
+
+    // Click para editar en modo edición
+    if (State.editMode && !isFuture) {
+      cell.addEventListener('click', () => open_day_edit_modal(key));
     }
 
     grid.appendChild(cell);
@@ -1113,11 +1206,13 @@ async function render_bar_chart(fromDate, dailyH) {
 /** Abre el modal de configuración y precarga los valores */
 DOM.settingsBtn.addEventListener('click', () => {
   if (!State.profile) return;
-  DOM.setName.value       = State.profile.full_name || '';
-  DOM.setPosition.value   = State.profile.position  || '';
-  DOM.setDailyHours.value = State.profile.daily_hours || 8;
-  DOM.setWorkDays.value   = State.profile.work_days   || 5;
-  DOM.setTimezone.value   = State.profile.timezone    || 'Europe/Madrid';
+  DOM.setName.value         = State.profile.full_name    || '';
+  DOM.setPosition.value     = State.profile.position     || '';
+  DOM.setDailyHours.value   = State.profile.daily_hours  || 8;
+  DOM.setWorkDays.value     = State.profile.work_days    || 5;
+  DOM.setTimezone.value     = State.profile.timezone     || 'Europe/Madrid';
+  DOM.setVacationDays.value = State.profile.vacation_days || 22;
+  DOM.setPendingHours.value = State.profile.pending_hours || 0;
   setMsg(DOM.settingsMsg, '');
   DOM.settingsModal.classList.remove('hidden');
 });
@@ -1142,12 +1237,14 @@ DOM.settingsForm.addEventListener('submit', async e => {
   const { data, error } = await sb()
     .from('profiles')
     .upsert({
-      id:          State.user.id,
-      full_name:   DOM.setName.value.trim(),
-      position:    DOM.setPosition.value.trim(),
-      daily_hours: parseFloat(DOM.setDailyHours.value) || 8,
-      work_days:   parseInt(DOM.setWorkDays.value) || 5,
-      timezone:    DOM.setTimezone.value,
+      id:            State.user.id,
+      full_name:     DOM.setName.value.trim(),
+      position:      DOM.setPosition.value.trim(),
+      daily_hours:   parseFloat(DOM.setDailyHours.value) || 8,
+      work_days:     parseInt(DOM.setWorkDays.value) || 5,
+      timezone:      DOM.setTimezone.value,
+      vacation_days: parseInt(DOM.setVacationDays.value) || 22,
+      pending_hours: parseFloat(DOM.setPendingHours.value) || 0,
     }, { onConflict: 'id' })
     .select()
     .single();
@@ -1167,8 +1264,361 @@ DOM.settingsForm.addEventListener('submit', async e => {
 });
 
 /* ─────────────────────────────────────────────
+   MODO EDICIÓN — PIN
+───────────────────────────────────────────── */
+
+/** Abre el modal de PIN */
+DOM.editModeBtn.addEventListener('click', () => {
+  if (State.editMode) {
+    exit_edit_mode();
+    return;
+  }
+  setMsg(DOM.pinError, '');
+  DOM.pinInput.value = '';
+  DOM.pinNew.value   = '';
+  setMsg(DOM.pinSaveMsg, '');
+  DOM.pinModal.classList.remove('hidden');
+  setTimeout(() => DOM.pinInput.focus(), 100);
+});
+
+DOM.pinClose.addEventListener('click', () => DOM.pinModal.classList.add('hidden'));
+DOM.pinModal.addEventListener('click', e => { if (e.target === DOM.pinModal) DOM.pinModal.classList.add('hidden'); });
+
+/** Guardar nuevo PIN */
+DOM.pinSave.addEventListener('click', async () => {
+  const pin = DOM.pinNew.value.trim();
+  if (!pin) { return; }
+  const { error } = await sb().from('profiles')
+    .update({ edit_pin: pin })
+    .eq('id', State.user.id);
+  if (error) { setMsg(DOM.pinSaveMsg, 'Error: ' + error.message); return; }
+  State.profile.edit_pin = pin;
+  setMsg(DOM.pinSaveMsg, '✓ PIN guardado', 'success');
+  DOM.pinNew.value = '';
+});
+
+/** Confirmar PIN para entrar en modo edición */
+DOM.pinConfirm.addEventListener('click', () => {
+  const entered = DOM.pinInput.value.trim();
+  const stored  = State.profile?.edit_pin || '';
+  if (!stored) {
+    setMsg(DOM.pinError, 'No tienes PIN configurado. Guarda uno primero.');
+    return;
+  }
+  if (entered !== stored) {
+    setMsg(DOM.pinError, 'PIN incorrecto.');
+    return;
+  }
+  DOM.pinModal.classList.add('hidden');
+  enter_edit_mode();
+});
+
+// También confirmar con Enter
+DOM.pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') DOM.pinConfirm.click(); });
+
+function enter_edit_mode() {
+  State.editMode = true;
+  DOM.editModeBtn.textContent = '🔓';
+  DOM.editModeBtn.classList.add('active');
+  DOM.editModeBanner.classList.remove('hidden');
+  showToast('✏️ Modo edición activado', 'default');
+}
+
+function exit_edit_mode() {
+  State.editMode = false;
+  DOM.editModeBtn.textContent = '🔒';
+  DOM.editModeBtn.classList.remove('active');
+  DOM.editModeBanner.classList.add('hidden');
+  showToast('🔒 Modo edición desactivado', 'default');
+  // Re-render la vista activa para quitar botones de edición
+  const activeView = document.querySelector('.nav-btn.active')?.dataset.view;
+  if (activeView === 'history') render_history();
+  if (activeView === 'stats')   render_stats();
+}
+
+DOM.editModeExit.addEventListener('click', exit_edit_mode);
+
+/* ─────────────────────────────────────────────
+   EDITAR FICHAJE
+───────────────────────────────────────────── */
+
+function open_entry_edit_modal(id, dateKey, timeIn, timeOut) {
+  DOM.entryEditId.value   = id;
+  DOM.entryEditDate.value = dateKey;
+  DOM.entryEditIn.value   = timeIn  || '';
+  DOM.entryEditOut.value  = timeOut || '';
+  // Mostrar fecha legible
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  DOM.entryEditDateLabel.textContent = date.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  setMsg(DOM.entryEditMsg, '');
+  DOM.entryEditModal.classList.remove('hidden');
+}
+
+DOM.entryEditClose.addEventListener('click', () => DOM.entryEditModal.classList.add('hidden'));
+DOM.entryEditModal.addEventListener('click', e => { if (e.target === DOM.entryEditModal) DOM.entryEditModal.classList.add('hidden'); });
+
+/** Guardar cambios en fichaje */
+DOM.entryEditSave.addEventListener('click', async () => {
+  const id      = DOM.entryEditId.value;
+  const dateKey = DOM.entryEditDate.value;
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const timeIn  = DOM.entryEditIn.value;
+  const timeOut = DOM.entryEditOut.value;
+
+  if (!timeIn) { setMsg(DOM.entryEditMsg, 'La hora de entrada es obligatoria.'); return; }
+
+  const checkIn  = new Date(y, m-1, d, ...timeIn.split(':').map(Number)).toISOString();
+  const checkOut = timeOut ? new Date(y, m-1, d, ...timeOut.split(':').map(Number)).toISOString() : null;
+
+  DOM.entryEditSave.disabled = true;
+  DOM.entryEditSave.innerHTML = '<span class="spinner"></span>';
+
+  const { error } = await sb().from('time_entries')
+    .update({ check_in: checkIn, check_out: checkOut })
+    .eq('id', id)
+    .eq('user_id', State.user.id);
+
+  DOM.entryEditSave.disabled = false;
+  DOM.entryEditSave.textContent = 'Guardar cambios';
+
+  if (error) { setMsg(DOM.entryEditMsg, 'Error: ' + error.message); return; }
+
+  setMsg(DOM.entryEditMsg, '✓ Guardado', 'success');
+  setTimeout(() => {
+    DOM.entryEditModal.classList.add('hidden');
+    render_history();
+    refresh_dashboard();
+  }, 800);
+});
+
+/** Eliminar fichaje */
+DOM.entryEditDelete.addEventListener('click', async () => {
+  if (!confirm('¿Eliminar este fichaje? Esta acción no se puede deshacer.')) return;
+  const id = DOM.entryEditId.value;
+  const { error } = await sb().from('time_entries')
+    .delete().eq('id', id).eq('user_id', State.user.id);
+  if (error) { setMsg(DOM.entryEditMsg, 'Error: ' + error.message); return; }
+  DOM.entryEditModal.classList.add('hidden');
+  render_history();
+  refresh_dashboard();
+  showToast('Fichaje eliminado', 'default');
+});
+
+/* ─────────────────────────────────────────────
+   EDITAR DÍA CALENDARIO
+───────────────────────────────────────────── */
+
+/** Carga los overrides del mes visible */
+async function load_day_overrides(year, month) {
+  const start = new Date(year, month, 1).toISOString().split('T')[0];
+  const end   = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const { data } = await sb().from('day_overrides')
+    .select('*')
+    .eq('user_id', State.user.id)
+    .gte('date', start)
+    .lte('date', end);
+  State.dayOverrides.clear();
+  for (const o of (data || [])) State.dayOverrides.set(o.date, o);
+}
+
+/** También cargar overrides del año completo para vacaciones */
+async function load_day_overrides_year(year) {
+  const { data } = await sb().from('day_overrides')
+    .select('*')
+    .eq('user_id', State.user.id)
+    .gte('date', `${year}-01-01`)
+    .lte('date', `${year}-12-31`);
+  State.dayOverrides.clear();
+  for (const o of (data || [])) State.dayOverrides.set(o.date, o);
+}
+
+/** Abre modal de edición de día */
+function open_day_edit_modal(dateKey) {
+  if (!State.editMode) return;
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, m-1, d);
+  DOM.dayEditLabel.textContent = date.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  DOM.dayEditDate.value = dateKey;
+
+  // Precargar tipo actual
+  const existing = State.dayOverrides.get(dateKey);
+  document.querySelectorAll('.day-type-btn').forEach(b => b.classList.remove('selected'));
+  if (existing) {
+    const btn = document.querySelector(`.day-type-btn[data-type="${existing.type}"]`);
+    if (btn) btn.classList.add('selected');
+    DOM.dayEditLabelInput.value  = existing.label  || '';
+    DOM.dayEditHoursInput.value  = existing.hours  || 8;
+  } else {
+    DOM.dayEditLabelInput.value  = '';
+    DOM.dayEditHoursInput.value  = 8;
+  }
+  update_day_edit_fields(existing?.type || null);
+  setMsg(DOM.dayEditMsg, '');
+  DOM.dayEditModal.classList.remove('hidden');
+}
+
+/** Muestra/oculta campos según tipo */
+function update_day_edit_fields(type) {
+  const showLabel = ['national_holiday', 'local_holiday'].includes(type);
+  const showHours = ['vacation', 'pending_hours'].includes(type);
+  DOM.dayEditLabelField.classList.toggle('hidden', !showLabel);
+  DOM.dayEditHoursField.classList.toggle('hidden', !showHours);
+}
+
+// Selección de tipo
+document.querySelectorAll('.day-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.day-type-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    update_day_edit_fields(btn.dataset.type);
+  });
+});
+
+DOM.dayEditClose.addEventListener('click', () => DOM.dayEditModal.classList.add('hidden'));
+DOM.dayEditModal.addEventListener('click', e => { if (e.target === DOM.dayEditModal) DOM.dayEditModal.classList.add('hidden'); });
+
+/** Guardar override de día */
+DOM.dayEditSave.addEventListener('click', async () => {
+  const dateKey = DOM.dayEditDate.value;
+  const type    = document.querySelector('.day-type-btn.selected')?.dataset.type;
+  if (!type) { setMsg(DOM.dayEditMsg, 'Selecciona un tipo de día.'); return; }
+
+  const label = DOM.dayEditLabelInput.value.trim();
+  const hours = parseFloat(DOM.dayEditHoursInput.value) || 8;
+
+  DOM.dayEditSave.disabled = true;
+  DOM.dayEditSave.innerHTML = '<span class="spinner"></span>';
+
+  const { error } = await sb().from('day_overrides').upsert({
+    user_id: State.user.id,
+    date:    dateKey,
+    type, label, hours,
+  }, { onConflict: 'user_id,date' });
+
+  DOM.dayEditSave.disabled = false;
+  DOM.dayEditSave.textContent = 'Guardar';
+
+  if (error) { setMsg(DOM.dayEditMsg, 'Error: ' + error.message); return; }
+
+  setMsg(DOM.dayEditMsg, '✓ Guardado', 'success');
+  await load_day_overrides(CalState.year, CalState.month);
+  setTimeout(() => {
+    DOM.dayEditModal.classList.add('hidden');
+    render_stats();
+  }, 600);
+});
+
+/** Restablecer día a predeterminado */
+DOM.dayEditReset.addEventListener('click', async () => {
+  const dateKey = DOM.dayEditDate.value;
+  await sb().from('day_overrides')
+    .delete().eq('user_id', State.user.id).eq('date', dateKey);
+  State.dayOverrides.delete(dateKey);
+  DOM.dayEditModal.classList.add('hidden');
+  render_stats();
+  showToast('Día restablecido', 'default');
+});
+
+/* ─────────────────────────────────────────────
+   PESTAÑA VACACIONES
+───────────────────────────────────────────── */
+
+function populate_vac_year_filter() {
+  const sel = DOM.vacFilterYear;
+  if (!sel) return;
+  sel.innerHTML = '';
+  const y = new Date().getFullYear();
+  for (let i = 0; i <= 2; i++) {
+    const opt = document.createElement('option');
+    opt.value = y - i;
+    opt.textContent = y - i;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', render_vacations);
+}
+
+async function render_vacations() {
+  const year = parseInt(DOM.vacFilterYear?.value) || new Date().getFullYear();
+
+  await load_day_overrides_year(year);
+
+  const vacDays    = [];
+  const pendDays   = [];
+  const localDays  = [];
+
+  for (const [dateKey, ov] of State.dayOverrides) {
+    if (!dateKey.startsWith(year)) continue;
+    if (ov.type === 'vacation')      vacDays.push(ov);
+    if (ov.type === 'pending_hours') pendDays.push(ov);
+    if (ov.type === 'local_holiday') localDays.push(ov);
+  }
+
+  const profile       = State.profile || {};
+  const totalVacDays  = parseInt(profile.vacation_days) || 22;
+  const dailyH        = parseFloat(profile.daily_hours) || 8;
+  const initPending   = parseFloat(profile.pending_hours) || 0;
+
+  // Vacaciones: contar días (cada entrada = 1 día)
+  const usedVacDays   = vacDays.length;
+  const remainingVac  = totalVacDays - usedVacDays;
+
+  DOM.vacUsed.textContent     = usedVacDays;
+  DOM.vacTotal.textContent    = totalVacDays;
+  DOM.vacRemaining.textContent = `${remainingVac >= 0 ? remainingVac : 0} restantes`;
+  DOM.vacRemaining.style.color = remainingVac >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+
+  // Horas pendientes
+  const usedPendH  = pendDays.reduce((s, o) => s + (parseFloat(o.hours) || 0), 0);
+  const pendBal    = initPending - usedPendH;
+  DOM.pendUsed.textContent    = fmt_duration(usedPendH * 60);
+  DOM.pendBalance.textContent = `${pendBal >= 0 ? '+' : ''}${fmt_duration(pendBal * 60)} saldo`;
+  DOM.pendBalance.style.color = pendBal >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+
+  // Festivos laborables
+  DOM.localCount.textContent = localDays.length;
+
+  const fmt_vac_date = key => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m-1, d).toLocaleDateString('es-ES', { day:'numeric', month:'short' });
+  };
+
+  // Render listas
+  render_vac_list(DOM.vacList, vacDays.map(o => ({
+    date: fmt_vac_date(o.date),
+    label: o.label || 'Vacaciones',
+    value: `${o.hours || dailyH}h`
+  })));
+  render_vac_list(DOM.pendList, pendDays.map(o => ({
+    date: fmt_vac_date(o.date),
+    label: o.label || 'Horas pendientes',
+    value: `${o.hours || dailyH}h`
+  })));
+  render_vac_list(DOM.localList, localDays.map(o => ({
+    date: fmt_vac_date(o.date),
+    label: o.label || 'Festivo laboral',
+    value: ''
+  })));
+}
+
+function render_vac_list(container, items) {
+  if (!items.length) {
+    container.innerHTML = '<div class="vac-empty">Sin registros</div>';
+    return;
+  }
+  container.innerHTML = items.map(i => `
+    <div class="vac-item">
+      <span class="vac-item-date">${i.date}</span>
+      <span class="vac-item-label">${i.label}</span>
+      ${i.value ? `<span class="vac-item-hours">${i.value}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────────
    INICIALIZACIÓN
 ───────────────────────────────────────────── */
 populate_month_filter();
 populate_stats_month_filter();
+populate_vac_year_filter();
 init();

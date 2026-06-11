@@ -10,9 +10,7 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════════
-       PANTALLA DE AUTH (Login / Registro)
-  ═══════════════════════════════════════════ -->
+  <!-- ═══ AUTH ═══ -->
   <div id="auth-screen" class="screen" style="display:none">
     <div class="auth-container">
       <div class="auth-brand">
@@ -20,8 +18,6 @@
         <h1>TimeControl</h1>
         <p>Gestión horaria para equipos</p>
       </div>
-
-      <!-- Login Form -->
       <form id="login-form" class="auth-form active">
         <div class="field-group">
           <label for="login-email">Correo electrónico</label>
@@ -37,12 +33,9 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════
-       PANTALLA PRINCIPAL (App)
-  ═══════════════════════════════════════════ -->
+  <!-- ═══ APP ═══ -->
   <div id="app-screen" class="screen" style="display:none">
 
-    <!-- Header / Navbar -->
     <header class="app-header">
       <div class="header-inner">
         <div class="header-brand">
@@ -51,35 +44,39 @@
         </div>
         <div class="header-user">
           <span id="header-username" class="user-name"></span>
+          <!-- Botón modo edición -->
+          <button id="edit-mode-btn" class="btn btn-ghost btn-icon edit-mode-toggle" title="Modo edición">🔒</button>
           <button id="settings-btn" class="btn btn-ghost btn-icon" title="Configuración">⚙</button>
-          <button id="logout-btn" class="btn btn-ghost" title="Cerrar sesión">Salir</button>
+          <button id="logout-btn" class="btn btn-ghost">Salir</button>
         </div>
       </div>
     </header>
 
-    <!-- Navigation Tabs -->
+    <!-- Banda de modo edición -->
+    <div id="edit-mode-banner" class="edit-mode-banner hidden">
+      ✏️ Modo edición activo — puedes modificar fichajes y días del calendario
+      <button id="edit-mode-exit" class="btn btn-ghost" style="color:inherit;font-size:.8rem;padding:.2rem .6rem;">Salir</button>
+    </div>
+
     <nav class="app-nav">
       <button class="nav-btn active" data-view="dashboard">Panel</button>
       <button class="nav-btn" data-view="history">Historial</button>
       <button class="nav-btn" data-view="stats">Estadísticas</button>
+      <button class="nav-btn" data-view="vacations">Vacaciones</button>
     </nav>
 
     <main class="app-main">
 
-      <!-- ─── VIEW: DASHBOARD ─── -->
+      <!-- DASHBOARD -->
       <section id="view-dashboard" class="view active">
-
-        <!-- Status card -->
         <div class="status-card" id="status-card">
-          <div class="status-indicator" id="status-indicator">
+          <div class="status-indicator">
             <div class="status-dot" id="status-dot"></div>
             <span id="status-label">Cargando...</span>
           </div>
           <div class="status-time" id="status-time"></div>
           <div class="status-elapsed" id="status-elapsed"></div>
         </div>
-
-        <!-- Main clock button -->
         <div class="clock-action">
           <button id="checkin-btn" class="clock-btn clock-btn--in" disabled>
             <span class="clock-btn-icon">▶</span>
@@ -92,75 +89,35 @@
             <span class="clock-btn-sub">Registrar fin de jornada</span>
           </button>
         </div>
-
-        <!-- Today summary -->
         <div class="today-summary">
           <h3>Hoy</h3>
           <div class="summary-grid">
-            <div class="summary-item">
-              <span class="summary-label">Entrada</span>
-              <span class="summary-value" id="today-checkin">—</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Salida</span>
-              <span class="summary-value" id="today-checkout">—</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Trabajado</span>
-              <span class="summary-value" id="today-worked">—</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Jornada</span>
-              <span class="summary-value" id="today-goal">—</span>
-            </div>
+            <div class="summary-item"><span class="summary-label">Entrada</span><span class="summary-value" id="today-checkin">—</span></div>
+            <div class="summary-item"><span class="summary-label">Salida</span><span class="summary-value" id="today-checkout">—</span></div>
+            <div class="summary-item"><span class="summary-label">Trabajado</span><span class="summary-value" id="today-worked">—</span></div>
+            <div class="summary-item"><span class="summary-label">Jornada</span><span class="summary-value" id="today-goal">—</span></div>
           </div>
         </div>
-
-        <!-- Week / Month balance -->
         <div class="balance-cards">
-          <div class="balance-card" id="week-balance-card">
-            <div class="balance-header">
-              <span class="balance-period">Esta semana</span>
-              <span class="balance-badge" id="week-badge">—</span>
-            </div>
-            <div class="balance-bar-wrap">
-              <div class="balance-bar">
-                <div class="balance-bar-fill" id="week-bar"></div>
-              </div>
-            </div>
-            <div class="balance-footer">
-              <span id="week-worked">— h trabajadas</span>
-              <span id="week-goal">— h objetivo</span>
-            </div>
+          <div class="balance-card">
+            <div class="balance-header"><span class="balance-period">Esta semana</span><span class="balance-badge" id="week-badge">—</span></div>
+            <div class="balance-bar-wrap"><div class="balance-bar"><div class="balance-bar-fill" id="week-bar"></div></div></div>
+            <div class="balance-footer"><span id="week-worked">—</span><span id="week-goal">—</span></div>
           </div>
-
-          <div class="balance-card" id="month-balance-card">
-            <div class="balance-header">
-              <span class="balance-period">Este mes</span>
-              <span class="balance-badge" id="month-badge">—</span>
-            </div>
-            <div class="balance-bar-wrap">
-              <div class="balance-bar">
-                <div class="balance-bar-fill" id="month-bar"></div>
-              </div>
-            </div>
-            <div class="balance-footer">
-              <span id="month-worked">— h trabajadas</span>
-              <span id="month-goal">— h objetivo</span>
-            </div>
+          <div class="balance-card">
+            <div class="balance-header"><span class="balance-period">Este mes</span><span class="balance-badge" id="month-badge">—</span></div>
+            <div class="balance-bar-wrap"><div class="balance-bar"><div class="balance-bar-fill" id="month-bar"></div></div></div>
+            <div class="balance-footer"><span id="month-worked">—</span><span id="month-goal">—</span></div>
           </div>
         </div>
-
       </section>
 
-      <!-- ─── VIEW: HISTORY ─── -->
+      <!-- HISTORIAL -->
       <section id="view-history" class="view">
         <div class="view-header">
           <h2>Historial de fichajes</h2>
           <div class="history-filters">
-            <select id="history-filter-month">
-              <!-- filled by JS -->
-            </select>
+            <select id="history-filter-month"></select>
           </div>
         </div>
         <div id="history-list" class="history-list">
@@ -168,7 +125,7 @@
         </div>
       </section>
 
-      <!-- ─── VIEW: STATS ─── -->
+      <!-- ESTADÍSTICAS -->
       <section id="view-stats" class="view">
         <div class="view-header">
           <h2>Estadísticas</h2>
@@ -178,25 +135,11 @@
           </div>
         </div>
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-number" id="stat-total-days">—</div>
-            <div class="stat-label">Días trabajados (mes)</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-avg-hours">—</div>
-            <div class="stat-label">Horas/día promedio</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-overtime">—</div>
-            <div class="stat-label">Balance del mes</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" id="stat-punctuality">—</div>
-            <div class="stat-label">Días a tiempo</div>
-          </div>
+          <div class="stat-card"><div class="stat-number" id="stat-total-days">—</div><div class="stat-label">Días trabajados (mes)</div></div>
+          <div class="stat-card"><div class="stat-number" id="stat-avg-hours">—</div><div class="stat-label">Horas/día promedio</div></div>
+          <div class="stat-card"><div class="stat-number" id="stat-overtime">—</div><div class="stat-label">Balance del mes</div></div>
+          <div class="stat-card"><div class="stat-number" id="stat-punctuality">—</div><div class="stat-label">Días a tiempo</div></div>
         </div>
-
-        <!-- Calendario mensual -->
         <div class="calendar-container">
           <div class="calendar-header">
             <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
@@ -204,32 +147,185 @@
             <button class="cal-nav-btn" id="cal-next">&#8250;</button>
           </div>
           <div class="calendar-grid-header">
-            <span>Lun</span><span>Mar</span><span>Mié</span>
-            <span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+            <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
           </div>
           <div id="calendar-grid" class="calendar-grid"></div>
           <div class="calendar-legend">
             <span class="leg-item"><span class="leg-dot" style="background:var(--green)"></span>Completo</span>
             <span class="leg-item"><span class="leg-dot" style="background:var(--amber)"></span>Parcial</span>
             <span class="leg-item"><span class="leg-dot" style="background:var(--red)"></span>Falta</span>
-            <span class="leg-item"><span class="leg-dot" style="background:#C084FC"></span>Festivo</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#C084FC"></span>Festivo nac.</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#F0ABFC"></span>Festivo lab.</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#67E8F9"></span>Vacaciones</span>
+            <span class="leg-item"><span class="leg-dot" style="background:#FCA5A5"></span>Pendiente</span>
             <span class="leg-item"><span class="leg-dot" style="background:var(--border)"></span>Fin de semana</span>
           </div>
         </div>
-
         <div class="chart-container">
           <h3>Horas por día (últimas 2 semanas)</h3>
           <div id="bar-chart" class="bar-chart"></div>
         </div>
       </section>
 
-    </main>
+      <!-- VACACIONES -->
+      <section id="view-vacations" class="view">
+        <div class="view-header">
+          <h2>Vacaciones y saldos</h2>
+          <select id="vac-filter-year" style="font-family:var(--font);font-size:.875rem;padding:.45rem .75rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);cursor:pointer;outline:none;"></select>
+        </div>
 
+        <!-- Tarjetas de saldo -->
+        <div class="vac-saldo-grid">
+          <div class="vac-card vac-card--vacation">
+            <div class="vac-card-icon">🏖</div>
+            <div class="vac-card-info">
+              <div class="vac-card-title">Vacaciones</div>
+              <div class="vac-card-sub">22 días/año</div>
+            </div>
+            <div class="vac-card-numbers">
+              <div class="vac-big" id="vac-used">—</div>
+              <div class="vac-small">de <span id="vac-total">22</span> días</div>
+              <div class="vac-remaining" id="vac-remaining">— restantes</div>
+            </div>
+          </div>
+
+          <div class="vac-card vac-card--pending">
+            <div class="vac-card-icon">⏳</div>
+            <div class="vac-card-info">
+              <div class="vac-card-title">Horas pendientes</div>
+              <div class="vac-card-sub">Días a recuperar</div>
+            </div>
+            <div class="vac-card-numbers">
+              <div class="vac-big" id="pend-used">—</div>
+              <div class="vac-small">horas consumidas</div>
+              <div class="vac-remaining" id="pend-balance">— saldo</div>
+            </div>
+          </div>
+
+          <div class="vac-card vac-card--local">
+            <div class="vac-card-icon">📅</div>
+            <div class="vac-card-info">
+              <div class="vac-card-title">Festivos laborables</div>
+              <div class="vac-card-sub">Días festivos del convenio</div>
+            </div>
+            <div class="vac-card-numbers">
+              <div class="vac-big" id="local-count">—</div>
+              <div class="vac-small">días registrados</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listas detalle -->
+        <div class="vac-detail-grid">
+          <div class="vac-detail-block">
+            <h3>📋 Vacaciones disfrutadas</h3>
+            <div id="vac-list" class="vac-list"></div>
+          </div>
+          <div class="vac-detail-block">
+            <h3>⏳ Horas pendientes</h3>
+            <div id="pend-list" class="vac-list"></div>
+          </div>
+          <div class="vac-detail-block">
+            <h3>📅 Festivos laborables</h3>
+            <div id="local-list" class="vac-list"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- ═══════════════════════════════════════════
-       MODAL: CONFIGURACIÓN
-  ═══════════════════════════════════════════ -->
+  <!-- ═══ MODAL: PIN DE EDICIÓN ═══ -->
+  <div id="pin-modal" class="modal-overlay hidden">
+    <div class="modal modal--sm">
+      <div class="modal-header">
+        <h3>🔒 Modo edición</h3>
+        <button class="modal-close" id="pin-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem;">Introduce el PIN de administrador para activar el modo edición.</p>
+        <div class="field-group">
+          <label for="pin-input">PIN de edición</label>
+          <input type="password" id="pin-input" placeholder="••••" maxlength="20" autocomplete="off" />
+        </div>
+        <button id="pin-confirm" class="btn btn-primary btn-full" style="margin-top:.75rem;">Activar modo edición</button>
+        <div id="pin-error" class="form-error hidden" style="margin-top:.5rem;"></div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+          <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem;">¿Aún no tienes PIN? Configúralo aquí:</p>
+          <div style="display:flex;gap:.5rem;">
+            <input type="password" id="pin-new" placeholder="Nuevo PIN" style="flex:1;font-family:var(--font);font-size:.875rem;padding:.5rem .75rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);outline:none;" />
+            <button id="pin-save" class="btn btn-primary">Guardar</button>
+          </div>
+          <div id="pin-save-msg" class="form-success hidden" style="margin-top:.5rem;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: EDITAR FICHAJE ═══ -->
+  <div id="entry-edit-modal" class="modal-overlay hidden">
+    <div class="modal modal--sm">
+      <div class="modal-header">
+        <h3>✏️ Editar fichaje</h3>
+        <button class="modal-close" id="entry-edit-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="entry-edit-date-label" style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;font-weight:600;"></div>
+        <div class="field-group">
+          <label for="entry-edit-in">Hora de entrada</label>
+          <input type="time" id="entry-edit-in" />
+        </div>
+        <div class="field-group">
+          <label for="entry-edit-out">Hora de salida</label>
+          <input type="time" id="entry-edit-out" />
+        </div>
+        <input type="hidden" id="entry-edit-id" />
+        <input type="hidden" id="entry-edit-date" />
+        <div style="display:flex;gap:.75rem;margin-top:.75rem;">
+          <button id="entry-edit-save" class="btn btn-primary btn-full">Guardar cambios</button>
+          <button id="entry-edit-delete" class="btn" style="background:#FFF0F0;color:var(--red-dim);border:1.5px solid var(--red);min-width:80px;">Eliminar</button>
+        </div>
+        <div id="entry-edit-msg" class="form-success hidden" style="margin-top:.5rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: EDITAR DÍA CALENDARIO ═══ -->
+  <div id="day-edit-modal" class="modal-overlay hidden">
+    <div class="modal modal--sm">
+      <div class="modal-header">
+        <h3>✏️ Editar día</h3>
+        <button class="modal-close" id="day-edit-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="day-edit-label" style="font-size:.875rem;font-weight:700;color:var(--navy);margin-bottom:1rem;"></div>
+        <div class="field-group">
+          <label>Tipo de día</label>
+          <div class="day-type-grid" id="day-type-grid">
+            <button class="day-type-btn" data-type="work">💼 Laboral</button>
+            <button class="day-type-btn" data-type="national_holiday">🇪🇸 Festivo nacional</button>
+            <button class="day-type-btn" data-type="local_holiday">📅 Festivo laboral</button>
+            <button class="day-type-btn" data-type="vacation">🏖 Vacaciones</button>
+            <button class="day-type-btn" data-type="pending_hours">⏳ Horas pendientes</button>
+          </div>
+        </div>
+        <div id="day-edit-label-field" class="field-group hidden">
+          <label for="day-edit-label-input">Nombre / descripción</label>
+          <input type="text" id="day-edit-label-input" placeholder="Ej: San Jorge, Semana Santa..." />
+        </div>
+        <div id="day-edit-hours-field" class="field-group hidden">
+          <label for="day-edit-hours-input">Horas que computan</label>
+          <input type="number" id="day-edit-hours-input" value="8" min="0" max="24" step="0.5" />
+        </div>
+        <input type="hidden" id="day-edit-date" />
+        <button id="day-edit-save" class="btn btn-primary btn-full" style="margin-top:.75rem;">Guardar</button>
+        <button id="day-edit-reset" class="btn" style="width:100%;margin-top:.5rem;background:var(--bg);color:var(--text-muted);">Restablecer a predeterminado</button>
+        <div id="day-edit-msg" class="form-success hidden" style="margin-top:.5rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: CONFIGURACIÓN ═══ -->
   <div id="settings-modal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
@@ -238,18 +334,9 @@
       </div>
       <div class="modal-body">
         <form id="settings-form">
-          <div class="field-group">
-            <label for="set-name">Nombre completo</label>
-            <input type="text" id="set-name" required />
-          </div>
-          <div class="field-group">
-            <label for="set-position">Cargo / Puesto</label>
-            <input type="text" id="set-position" placeholder="Ej: Desarrollador Frontend" />
-          </div>
-          <div class="field-group">
-            <label for="set-daily-hours">Horas de jornada diaria</label>
-            <input type="number" id="set-daily-hours" value="8" min="1" max="24" step="0.5" required />
-          </div>
+          <div class="field-group"><label for="set-name">Nombre completo</label><input type="text" id="set-name" required /></div>
+          <div class="field-group"><label for="set-position">Cargo / Puesto</label><input type="text" id="set-position" placeholder="Ej: Desarrollador Frontend" /></div>
+          <div class="field-group"><label for="set-daily-hours">Horas de jornada diaria</label><input type="number" id="set-daily-hours" value="8" min="1" max="24" step="0.5" required /></div>
           <div class="field-group">
             <label for="set-work-days">Días laborables por semana</label>
             <select id="set-work-days">
@@ -268,6 +355,8 @@
               <option value="UTC">UTC</option>
             </select>
           </div>
+          <div class="field-group"><label for="set-vacation-days">Días de vacaciones anuales</label><input type="number" id="set-vacation-days" value="22" min="1" max="60" /></div>
+          <div class="field-group"><label for="set-pending-hours">Saldo inicial de horas pendientes</label><input type="number" id="set-pending-hours" value="0" min="-200" max="200" step="0.5" /></div>
           <button type="submit" class="btn btn-primary btn-full">Guardar cambios</button>
           <div id="settings-msg" class="form-success hidden"></div>
         </form>
@@ -275,12 +364,8 @@
     </div>
   </div>
 
-  <!-- Toast notification -->
   <div id="toast" class="toast hidden"></div>
 
-  <!-- ═══════════════════════════════════════════
-       SUPABASE CLIENT (CDN)
-  ═══════════════════════════════════════════ -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="config.js"></script>
