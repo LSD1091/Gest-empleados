@@ -1441,39 +1441,86 @@ async function render_vacations() {
 
   await load_day_overrides_year(year);
 
-  const vacDays    = [];
-  const pendDays   = [];
-  const localDays  = [];
+  const vacDays   = [];
+  const pendDays  = [];
+  const localDays = [];
 
   for (const [dateKey, ov] of State.dayOverrides) {
-    if (!dateKey.startsWith(year)) continue;
+    if (!dateKey.startsWith(String(year))) continue;
     if (ov.type === 'vacation')      vacDays.push(ov);
     if (ov.type === 'pending_hours') pendDays.push(ov);
     if (ov.type === 'local_holiday') localDays.push(ov);
   }
 
-  const profile       = State.profile || {};
-  const totalVacDays  = parseInt(profile.vacation_days) || 22;
-  const dailyH        = parseFloat(profile.daily_hours) || 8;
-  const initPending   = parseFloat(profile.pending_hours) || 0;
+  const profile      = State.profile || {};
+  const totalVacDays = parseInt(profile.vacation_days) || 22;
+  const dailyH       = parseFloat(profile.daily_hours) || 8;
+  const workDays     = parseInt(profile.work_days) || 5;
 
-  // Vacaciones: contar días (cada entrada = 1 día)
-  const usedVacDays   = vacDays.length;
-  const remainingVac  = totalVacDays - usedVacDays;
-
-  DOM.vacUsed.textContent     = usedVacDays;
-  DOM.vacTotal.textContent    = totalVacDays;
+  // ── Vacaciones ──────────────────────────────
+  const usedVacDays  = vacDays.length;
+  const remainingVac = totalVacDays - usedVacDays;
+  DOM.vacUsed.textContent      = usedVacDays;
+  DOM.vacTotal.textContent     = totalVacDays;
   DOM.vacRemaining.textContent = `${remainingVac >= 0 ? remainingVac : 0} restantes`;
   DOM.vacRemaining.style.color = remainingVac >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
 
-  // Horas pendientes
-  const usedPendH  = pendDays.reduce((s, o) => s + (parseFloat(o.hours) || 0), 0);
-  const pendBal    = initPending - usedPendH;
-  DOM.pendUsed.textContent    = fmt_duration(usedPendH * 60);
-  DOM.pendBalance.textContent = `${pendBal >= 0 ? '+' : ''}${fmt_duration(pendBal * 60)} saldo`;
-  DOM.pendBalance.style.color = pendBal >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+  // ── Horas pendientes ────────────────────────
+  // 1. Obtener todos los fichajes del año
+  const yearStart = new Date(year, 0, 1).toISOString();
+  const yearEnd   = new Date(year, 11, 31, 23, 59, 59).toISOString();
+  const { data: entries } = await sb()
+    .from('time_entries')
+    .select('*')
+    .eq('user_id', State.user.id)
+    .gte('check_in', yearStart)
+    .lte('check_in', yearEnd)
+    .not('check_out', 'is', null);
 
-  // Festivos laborables
+  // 2. Calcular balance acumulado día a día (horas de más / de menos)
+  const byDay = {};
+  for (const e of (entries || [])) {
+    const key = fmt_date_key(new Date(e.check_in));
+    if (!byDay[key]) byDay[key] = 0;
+    byDay[key] += diff_minutes(e.check_in, e.check_out);
+  }
+
+  const holidays = get_holidays(year);
+  let accumulatedBalanceMins = 0;
+
+  for (const [dateKey, workedMins] of Object.entries(byDay)) {
+    const date = new Date(dateKey);
+    const dow  = date.getDay();
+    const override = State.dayOverrides.get(dateKey);
+
+    // Ignorar días que no son laborables (fines de semana, festivos, vacaciones, etc.)
+    const isWeekend  = dow === 0 || dow === 6;
+    const isHoliday  = holidays.has(dateKey);
+    const isOverride = override && override.type !== 'work';
+    if (isWeekend || isHoliday || isOverride) continue;
+
+    accumulatedBalanceMins += workedMins - dailyH * 60;
+  }
+
+  // 3. Horas consumidas por overrides de tipo pending_hours
+  const consumedPendMins = pendDays.reduce((s, o) => s + (parseFloat(o.hours) || 0) * 60, 0);
+
+  // 4. Saldo final = balance real acumulado - horas pendientes consumidas
+  const finalBalanceMins = accumulatedBalanceMins - consumedPendMins;
+
+  DOM.pendUsed.textContent    = fmt_duration(Math.abs(accumulatedBalanceMins));
+  DOM.pendUsed.style.color    = accumulatedBalanceMins >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+  DOM.pendBalance.textContent = `${finalBalanceMins >= 0 ? '+' : ''}${fmt_duration(finalBalanceMins)} saldo neto`;
+  DOM.pendBalance.style.color = finalBalanceMins >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+
+  // Actualizar etiqueta de la tarjeta
+  const pendCard = DOM.pendUsed.closest('.vac-card');
+  if (pendCard) {
+    const sub = pendCard.querySelector('.vac-card-sub');
+    if (sub) sub.textContent = accumulatedBalanceMins >= 0 ? 'Horas acumuladas de más' : 'Horas en deuda';
+  }
+
+  // ── Festivos laborables ──────────────────────
   DOM.localCount.textContent = localDays.length;
 
   const fmt_vac_date = key => {
