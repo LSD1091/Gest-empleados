@@ -916,7 +916,7 @@ function render_calendar(year, month, byDay, dailyH, workDaysPerWeek) {
     }
 
     if (isToday) cls += ' today';
-    if (State.editMode && !isFuture) cls += ' editable';
+    if (State.editMode) cls += ' editable';
     if (override) cls += ' has-override';
 
     const cell = document.createElement('div');
@@ -959,7 +959,7 @@ function render_calendar(year, month, byDay, dailyH, workDaysPerWeek) {
     }
 
     // Click para editar en modo edición
-    if (State.editMode && !isFuture) {
+    if (State.editMode) {
       cell.addEventListener('click', () => open_day_edit_modal(key));
     }
 
