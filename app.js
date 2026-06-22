@@ -53,6 +53,7 @@ const DOM = {
   dayEditMsg:$('day-edit-msg'), dayEditLabelField:$('day-edit-label-field'),
   dayEditHoursField:$('day-edit-hours-field'), dayEditLabelInput:$('day-edit-label-input'),
   dayEditHoursInput:$('day-edit-hours-input'),
+  dayEditWorkFields:$('day-edit-work-fields'), dayEditWorkIn:$('day-edit-work-in'), dayEditWorkOut:$('day-edit-work-out'),
   vacFilterYear:$('vac-filter-year'), vacUsed:$('vac-used'), vacTotal:$('vac-total'),
   vacRemaining:$('vac-remaining'), pendUsed:$('pend-used'), pendBalance:$('pend-balance'),
   localCount:$('local-count'), vacList:$('vac-list'), pendList:$('pend-list'), localList:$('local-list'),
@@ -1291,6 +1292,10 @@ function enter_edit_mode() {
   DOM.editModeBtn.classList.add('active');
   DOM.editModeBanner.classList.remove('hidden');
   showToast('✏️ Modo edición activado', 'default');
+  // Re-render la vista activa para que aparezcan los controles de edición
+  const activeView = document.querySelector('.nav-btn.active')?.dataset.view;
+  if (activeView === 'history') render_history();
+  if (activeView === 'stats')   render_stats();
 }
 
 function exit_edit_mode() {
@@ -1403,7 +1408,7 @@ async function load_day_overrides_year(year) {
 }
 
 /** Abre modal de edición de día */
-function open_day_edit_modal(dateKey) {
+async function open_day_edit_modal(dateKey) {
   if (!State.editMode) return;
   const [y, m, d] = dateKey.split('-').map(Number);
   const date = new Date(y, m-1, d);
@@ -1419,20 +1424,59 @@ function open_day_edit_modal(dateKey) {
     DOM.dayEditLabelInput.value  = existing.label  || '';
     DOM.dayEditHoursInput.value  = existing.hours  || 8;
   } else {
+    // Sin override: si el día tiene fichajes reales, preseleccionar "Laboral"
     DOM.dayEditLabelInput.value  = '';
     DOM.dayEditHoursInput.value  = 8;
   }
-  update_day_edit_fields(existing?.type || null);
+
+  // Cargar fichajes existentes de ese día (para mostrar/editar horas)
+  const dayStart = new Date(y, m-1, d, 0, 0, 0).toISOString();
+  const dayEnd   = new Date(y, m-1, d, 23, 59, 59).toISOString();
+  const { data: dayEntries } = await sb()
+    .from('time_entries')
+    .select('*')
+    .eq('user_id', State.user.id)
+    .gte('check_in', dayStart)
+    .lte('check_in', dayEnd)
+    .order('check_in', { ascending: true });
+
+  State._dayEditEntries = dayEntries || [];
+
+  if (dayEntries?.length) {
+    DOM.dayEditWorkIn.value  = fmt_time_24(dayEntries[0].check_in);
+    const last = dayEntries[dayEntries.length - 1];
+    DOM.dayEditWorkOut.value = last.check_out ? fmt_time_24(last.check_out) : '';
+    if (!existing) {
+      document.querySelector('.day-type-btn[data-type="work"]')?.classList.add('selected');
+    }
+  } else {
+    DOM.dayEditWorkIn.value  = '';
+    DOM.dayEditWorkOut.value = '';
+    if (!existing) {
+      document.querySelector('.day-type-btn[data-type="work"]')?.classList.add('selected');
+    }
+  }
+
+  const selectedType = document.querySelector('.day-type-btn.selected')?.dataset.type || 'work';
+  update_day_edit_fields(selectedType);
   setMsg(DOM.dayEditMsg, '');
   DOM.dayEditModal.classList.remove('hidden');
+}
+
+/** Formatea fecha ISO → "HH:MM" en hora local (para <input type=time>) */
+function fmt_time_24(isoDate) {
+  const d = new Date(isoDate);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
 /** Muestra/oculta campos según tipo */
 function update_day_edit_fields(type) {
   const showLabel = ['national_holiday', 'local_holiday'].includes(type);
   const showHours = ['vacation', 'pending_hours'].includes(type);
+  const showWork  = type === 'work';
   DOM.dayEditLabelField.classList.toggle('hidden', !showLabel);
   DOM.dayEditHoursField.classList.toggle('hidden', !showHours);
+  DOM.dayEditWorkFields.classList.toggle('hidden', !showWork);
 }
 
 // Selección de tipo
@@ -1447,7 +1491,7 @@ document.querySelectorAll('.day-type-btn').forEach(btn => {
 DOM.dayEditClose.addEventListener('click', () => DOM.dayEditModal.classList.add('hidden'));
 DOM.dayEditModal.addEventListener('click', e => { if (e.target === DOM.dayEditModal) DOM.dayEditModal.classList.add('hidden'); });
 
-/** Guardar override de día */
+/** Guardar override de día (y fichaje si es tipo "Laboral") */
 DOM.dayEditSave.addEventListener('click', async () => {
   const dateKey = DOM.dayEditDate.value;
   const type    = document.querySelector('.day-type-btn.selected')?.dataset.type;
@@ -1459,22 +1503,78 @@ DOM.dayEditSave.addEventListener('click', async () => {
   DOM.dayEditSave.disabled = true;
   DOM.dayEditSave.innerHTML = '<span class="spinner"></span>';
 
-  const { error } = await sb().from('day_overrides').upsert({
-    user_id: State.user.id,
-    date:    dateKey,
-    type, label, hours,
-  }, { onConflict: 'user_id,date' });
+  // ── Caso "Laboral": crear/actualizar el fichaje real ──
+  if (type === 'work') {
+    const timeIn  = DOM.dayEditWorkIn.value;
+    const timeOut = DOM.dayEditWorkOut.value;
+
+    if (!timeIn) {
+      setMsg(DOM.dayEditMsg, 'Indica al menos la hora de entrada.');
+      DOM.dayEditSave.disabled = false;
+      DOM.dayEditSave.textContent = 'Guardar';
+      return;
+    }
+
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const checkIn  = new Date(y, m-1, d, ...timeIn.split(':').map(Number)).toISOString();
+    const checkOut = timeOut ? new Date(y, m-1, d, ...timeOut.split(':').map(Number)).toISOString() : null;
+
+    const existingEntries = State._dayEditEntries || [];
+
+    let entryError = null;
+    if (existingEntries.length > 0) {
+      // Actualizar el primer fichaje del día, eliminar el resto si hubiera duplicados
+      const { error } = await sb().from('time_entries')
+        .update({ check_in: checkIn, check_out: checkOut })
+        .eq('id', existingEntries[0].id)
+        .eq('user_id', State.user.id);
+      entryError = error;
+    } else {
+      // Crear nuevo fichaje
+      const { error } = await sb().from('time_entries')
+        .insert({ user_id: State.user.id, check_in: checkIn, check_out: checkOut });
+      entryError = error;
+    }
+
+    if (entryError) {
+      setMsg(DOM.dayEditMsg, 'Error al guardar el fichaje: ' + entryError.message);
+      DOM.dayEditSave.disabled = false;
+      DOM.dayEditSave.textContent = 'Guardar';
+      return;
+    }
+
+    // Eliminar cualquier override existente para este día (vuelve a ser día laboral normal)
+    await sb().from('day_overrides')
+      .delete().eq('user_id', State.user.id).eq('date', dateKey);
+    State.dayOverrides.delete(dateKey);
+
+  } else {
+    // ── Resto de tipos: solo guardar el override ──
+    const { error } = await sb().from('day_overrides').upsert({
+      user_id: State.user.id,
+      date:    dateKey,
+      type, label, hours,
+    }, { onConflict: 'user_id,date' });
+
+    if (error) {
+      setMsg(DOM.dayEditMsg, 'Error: ' + error.message);
+      DOM.dayEditSave.disabled = false;
+      DOM.dayEditSave.textContent = 'Guardar';
+      return;
+    }
+  }
 
   DOM.dayEditSave.disabled = false;
   DOM.dayEditSave.textContent = 'Guardar';
-
-  if (error) { setMsg(DOM.dayEditMsg, 'Error: ' + error.message); return; }
-
   setMsg(DOM.dayEditMsg, '✓ Guardado', 'success');
+
   await load_day_overrides(CalState.year, CalState.month);
   setTimeout(() => {
     DOM.dayEditModal.classList.add('hidden');
     render_stats();
+    // Si la pestaña histórico está activa, refrescarla también
+    const activeView = document.querySelector('.nav-btn.active')?.dataset.view;
+    if (activeView === 'history') render_history();
   }, 600);
 });
 

@@ -309,6 +309,17 @@
           <label for="day-edit-hours-input">Horas que computan</label>
           <input type="number" id="day-edit-hours-input" value="8" min="0" max="24" step="0.5" />
         </div>
+        <div id="day-edit-work-fields" class="hidden">
+          <div class="field-group">
+            <label for="day-edit-work-in">Hora de entrada</label>
+            <input type="time" id="day-edit-work-in" />
+          </div>
+          <div class="field-group">
+            <label for="day-edit-work-out">Hora de salida</label>
+            <input type="time" id="day-edit-work-out" />
+          </div>
+          <p style="font-size:.75rem;color:var(--text-muted);margin:-.25rem 0 .25rem;">Si el día ya tiene fichajes, se mostrará el primero y el último. Al guardar se creará o actualizará el registro.</p>
+        </div>
         <input type="hidden" id="day-edit-date" />
         <button id="day-edit-save" class="btn btn-primary btn-full" style="margin-top:.75rem;">Guardar</button>
         <button id="day-edit-reset" class="btn" style="width:100%;margin-top:.5rem;background:var(--bg);color:var(--text-muted);">Restablecer a predeterminado</button>
